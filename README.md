@@ -440,7 +440,7 @@ Example :
      begin
        Params.Model(Models[ClaudeHaiku3]);
        Params.MaxTokens(1024);
-       Params.Messages([TChatMessagePayload.User(Memo2.Text, [Ref])]);
+       Params.Messages([TChatMessagePayload.User('Describe this image.', [Ref])]);
      end);
 
   Memo1.Lines.BeginUpdate;
@@ -475,7 +475,7 @@ Example - Asynchronous vision :
      begin
        Params.Model(Models[ClaudeOpus3]);
        Params.MaxTokens(1024);
-       Params.Messages([TChatMessagePayload.User(Memo2.Text, [Ref])]);
+       Params.Messages([TChatMessagePayload.User('Describe this image.', [Ref])]);
      end,
 
      function : TAsynChat
