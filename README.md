@@ -555,7 +555,7 @@ In the `Anthropic.Functions.Example` unit, there is a class that defines a funct
      begin
        Params.Model(Models[ClaudeHaiku3]);
        Params.MaxTokens(1024);
-       Params.Messages([TChatMessagePayload.User(Memo2.Text)]);
+       Params.Messages([TChatMessagePayload.User('What’s the weather in Paris?')]);
        Params.ToolChoice(auto);
        Params.Tools([WeatherFunc]);
      end);
@@ -572,7 +572,7 @@ In the `Anthropic.Functions.Example` unit, there is a class that defines a funct
         else
         if Item.&Type = 'tool_use' then
           begin
-            var Arguments := Format('%s' + sLineBreak + '%s', [Memo2.Text, WeatherFunc.Execute(Item.Input)]);
+            var Arguments := Format('%s' + sLineBreak + '%s', ['What’s the weather in Paris?', WeatherFunc.Execute(Item.Input)]);
             WeatherExecute(Arguments);
           end;
       end;
@@ -626,7 +626,7 @@ end;
       begin
         Params.Model(Models[ClaudeSonnet3_5]);
         Params.MaxTokens(1024);
-        Params.Messages([TChatMessagePayload.User(Memo2.Text)]);
+        Params.Messages([TChatMessagePayload.User('What’s the weather in Paris?')]);
         Params.ToolChoice(auto);
         Params.Tools([WeatherFunc]);
         Params.Stream(True);
@@ -659,7 +659,7 @@ end;
             var M := Sender as TMemo;
             if Chat.StopReason = tool_use then
               begin
-                var Arguments := Format('%s' + sLineBreak + '%s', [Memo1.Text, WeatherFunc.Execute(Chat.Delta.Input)]);
+                var Arguments := Format('%s' + sLineBreak + '%s', ['What’s the weather in Paris?', WeatherFunc.Execute(Chat.Delta.Input)]);
                 WeatherExecuteStream(Arguments);
                 Exit;
               end;
@@ -852,9 +852,9 @@ In the following example, we have a plain text file `text/plain` whose size exce
          TSystemPayload.Create('Here is the full text of a complex legal agreement:', 
             [LongText1, LongText2], True)
        ]);
-       Params.Messages([TChatMessagePayload.User(Memo2.Text)]);
+       Params.Messages([TChatMessagePayload.User('What are the key terms and conditions in this agreement?')]);
       // You can also add question and answer caching
-      // Params.Messages([TChatMessagePayload.User(Memo2.Text), True]); 
+      // Params.Messages([TChatMessagePayload.User('What are the key terms and conditions in this agreement?'), True]); 
      end);
   try
     for var Item in Chat.Content do
@@ -943,7 +943,7 @@ As with tools, if we provide a collection of images to Vision, only the last ima
      begin
        Params.Model(Models[ClaudeHaiku3]);
        Params.MaxTokens(1024);
-       Params.Messages([TChatMessagePayload.User('My_request', [Ref1, Ref2], both)]);
+       Params.Messages([TChatMessagePayload.User('What are the differences between these images?', [Ref1, Ref2], both)]);
      end);
   ...
 ```
