@@ -186,6 +186,7 @@ When generating a Message, you can enable "stream": true to progressively receiv
 Example :
 ```Pascal
 //uses Anthropic.API, Anthropic, Anthropic.Chat;
+
   Anthropic.Chat.CreateStream(
     procedure (Params: TChatParams)
     begin
