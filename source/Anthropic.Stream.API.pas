@@ -295,8 +295,6 @@ type
     destructor Destroy; override;
   end;
 
-  function ExtractJSONPair(Value: string; Key: string; ToObject: Boolean): string;
-
 implementation
 
 const
