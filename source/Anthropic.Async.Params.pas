@@ -5,7 +5,7 @@ unit Anthropic.Async.Params;
       Unit containing generic interfaces and classes for managing parameters
       across  various  asynchronous  operations.
 
-      The Anthropic.Params.Core  nit  provides  a set of tools for creating
+      The Anthropic.Async.Params unit  provides  a set of tools for creating
       and managing  parameter  instances  using  generic  types. The primary
       components include:
 

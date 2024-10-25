@@ -12,9 +12,9 @@ unit Anthropic.Async.Support;
       These records enable non-blocking operations for chat functionalities
       and can be reused across multiple modules.
 
-      This unit depends  on Anthropic.Params.Core  for parameter management.
+      This unit depends  on Anthropic.Async.Params  for parameter management.
       The IUseParams<T>  and  TUseParamsFactory<T>  interfaces  and  classes
-      from  Anthropic.Params.Core  are  utilized  to  create and manage the
+      from  Anthropic.Async.Params  are  utilized  to  create and manage the
       parameter  instances  for  asynchronous  operations.
 
         Github repository :  https://github.com/MaxiDonkey/DelphiAnthropic
