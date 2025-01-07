@@ -65,7 +65,7 @@ Welcome to the unofficial Delphi **Anthropic** API library. This project aims to
 
 # Changelog
 
-[See the changes](#https://github.com/MaxiDonkey/DelphiAnthropic/blob/main/Changelog.md) made in this version.
+[See the changes](https://github.com/MaxiDonkey/DelphiAnthropic/blob/main/Changelog.md) made in this version.
 
 <br/>
 
