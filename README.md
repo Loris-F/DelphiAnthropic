@@ -3,30 +3,36 @@
 ___
 ![GitHub](https://img.shields.io/badge/IDE%20Version-Delphi%2010.3/11/12-yellow)
 ![GitHub](https://img.shields.io/badge/platform-all%20platforms-green)
-![GitHub](https://img.shields.io/badge/Updated%20the%2010/14/2024-blue)
+![GitHub](https://img.shields.io/badge/Updated%20on%20january%207,%202025-blue)
 
 <br/>
 <br/>
 
 - [Introduction](#Introduction)
+- [Changelog](#Changelog)
 - [Remarks](#remarks)
+- [Wrapper Tools Info](#Wrapper-Tools-Info)
+    - [Tools for simplifying this tutorial](#Tools-for-simplifying-this-tutorial)
+    - [Asynchronous callback mode management](#Asynchronous-callback-mode-management)
+    - [Simplified Unit Declaration](#Simplified-Unit-Declaration) 
 - [Usage](#usage)
     - [Initialization](#initialization)
     - [Claude Models Overview](#Claude-Models-Overview)
+        - [List of models](#List-of-models)
+        - [Retrieve a model](#Retrieve-a-model)
     - [Embeddings](#embeddings)
     - [Chats](#chats)
         - [Create a message](#Create-a-message)
         - [Streaming messages](#Streaming-messages)
-    - [Callbacks (asynchronous mode)](#Callbacks-asynchronous-mode)
-    - [Asynchronous chat](#Asynchronous-chat)
-        - [Create a message ASYNC](#Create-a-message-ASYNC)
-        - [Streaming messages ASYNC](#Streaming-messages-ASYNC)
+        - [Multi-turn conversation](#Multi-turn-conversation)
+        - [Token counting](#Token-counting)
+    - [Document processing](#Document-processing)
     - [Vision](#vision)
         - [Passing a Base64 Encoded Image](#Passing-a-base64-encoded-image)
+        - [Passing an Image URL](#Passing-an-Image-URL)
     - [Function calling](#function-calling)
         - [Overview of Tool Use in Claude](#Overview-of-Tool-Use-in-Claude)
         - [Examples](#Examples)
-- [Beta versions](#Beta-versions)
     - [Prompt Caching](#Prompt-Caching) 
         - [Caching initialization](#Caching-initialization)
         - [System Caching](#System-Caching)
@@ -39,8 +45,8 @@ ___
         - [Batch list](#Batch-list)
         - [Batch cancel](#Batch-cancel)
         - [Batch retrieve message](#Batch-retrieve-message)
-        - [Batch retrieve results](#Batch-retrieve-results)  
-        - [Batch asynchronous](#Batch-asynchronous)  
+        - [Batch retrieve results](#Batch-retrieve-results)
+        - [Batch delete](#Batch-delete)
         - [Console](#Console) 
 - [Contributing](#contributing)
 - [License](#license)
@@ -49,7 +55,7 @@ ___
 <br/>
 
 
-## Introduction
+# Introduction
 
 Welcome to the unofficial Delphi **Anthropic** API library. This project aims to provide a `Delphi` interface for interacting with the **Anthropic** public API, making it easier to integrate advanced natural language processing features into your `Delphi` applications. Whether you want to generate text, create embeddings, use chat models, or generate code, this library offers a simple and effective solution.
 
@@ -57,7 +63,13 @@ Welcome to the unofficial Delphi **Anthropic** API library. This project aims to
 
 <br/>
 
-## Remarks 
+# Changelog
+
+[See the changes](#https://github.com/MaxiDonkey/DelphiAnthropic/blob/main/Changelog.md) made in this version.
+
+<br/>
+
+# Remarks 
 
 > [!IMPORTANT]
 >
@@ -66,166 +78,37 @@ Welcome to the unofficial Delphi **Anthropic** API library. This project aims to
 
 <br/>
 
-## Usage
+# Wrapper Tools Info
 
-### Initialization
+This section provides brief notifications and explanations about the tools available to simplify the presentation and understanding of the wrapper's functions in the tutorial.
 
-To initialize the API instance, you need to [obtain an API key from Anthropic](https://console.anthropic.com/settings/keys/).
+<br>
 
-Once you have a token, you can initialize `IAnthropic` interface, which is an entry point to the API.
+## Tools for simplifying this tutorial
 
-Due to the fact that there can be many parameters and not all of them are required, they are configured using an anonymous function.
+To streamline the code examples provided in this tutorial and facilitate quick implementation, two units have been included in the source code: `Anthropic.Tutorial.VCL` and `Anthropic.Tutorial.FMX`. Depending on the platform you choose to test the provided source code, you will need to instantiate either the `TVCLTutorialHub` or `TFMXTutorialHub` class in the application's OnCreate event, as demonstrated below:
 
-> [!NOTE]
+>[!TIP]
 >```Pascal
->uses Anthropic;
->
->var Anthropic := TAnthropicFactory.CreateInstance(API_KEY);
+> //uses Anthropic.Tutorial.VCL;
+> TutorialHub := TVCLTutorialHub.Create(Memo1, Button1);
 >```
 
-<br/>
+or
 
-### Claude Models Overview
+>[!TIP]
+>```Pascal
+> //uses Anthropic.Tutorial.FMX;
+> TutorialHub := TFMXTutorialHub.Create(Memo1, Button1);
+>```
 
-`Claude` is a family of advanced language models developed by Anthropic, designed for a range of tasks from fast, cost-efficient responses to highly complex operations. 
+Make sure to add a `TMemo` and a `TButton` component to your form beforehand.
 
->[!WARNING]
->Note: There is no API available for retrieving a list of models automatically; model names and versions must be referenced directly from the documentation.
->
-
-Key Models: <br/>
-- `Claude 3.5 Sonnet`: The most intelligent model, offering top-tier performance for high-complexity tasks.<br/>
-- `Claude 3 Opus`: Excellent for complex tasks requiring deep intelligence and fluency.<br/>
-- `Claude 3 Sonnet`: A balanced model that offers a good mix of intelligence and speed.<br/>
-- `Claude 3 Haiku`: The fastest and most responsive model, ideal for quick, targeted performance.<br/><br/>
-All models support text and image input, have a **200k** context window, and multilingual capabilities. Output token limits vary, with `Claude 3.5 Sonnet` allowing up to **8192 tokens**, while other models can handle up to **4096 tokens**. Pricing and latency also vary, with `Claude 3 Haiku` being the most cost-effective.
-
-For more details on getting started with Claude, [visit Anthropic’s documentation](https://docs.anthropic.com/en/docs/about-claude/models) to manually select models and obtain API keys.
+The `TButton` will allow the interruption of any streamed reception.
 
 <br/>
 
-To simplify working with the models in the upcoming examples, we’ll first declare the following constants. This will make it easier to reference and manipulate the models throughout the code :
-
-```Pascal
-const
-  ClaudeSonnet3_5 = 0;
-  ClaudeOpus3 = 1;
-  ClaudeSonnet3 = 2;
-  ClaudeHaiku3 = 3;
-  /// <summary>
-  /// Array of Available Models for v3 and Beyond
-  /// </summary>
-  Models : TArray<string> = [
-             'claude-3-5-sonnet-20240620', 'claude-3-opus-20240229', 
-             'claude-3-sonnet-20240229', 'claude-3-haiku-20240307'
-  ];
-```
-
-<br/>
-
-### Embeddings
-
-`Anthropic` does not offer its own models for **text embeddings**. While the documentation mentions `Voyage AI` as an embeddings provider, we do not include access to their APIs in our **GitHub repository**. This is because providing tools for Voyage models falls outside the scope of our focus on `Anthropic` APIs exclusively. Users seeking embedding solutions are encouraged to explore various vendors to find the best fit for their needs, but our resources concentrate solely on supporting `Anthropic's` offerings.
-
-<br/>
-
-### Chats
-
-`Claude` is capable of performing a wide range of text-based tasks. Trained on code, prose, and various natural language inputs, `Claude` excels in generating text outputs in response to detailed prompts. For optimal results, prompts should be written as detailed natural language instructions, and further improvements can be achieved through prompt engineering.
-
-- **Text Summarization**: Condense lengthy content into key insights.
-- **Content Generation:** Create engaging content like blog posts, emails, and product descriptions.
-- **Data and Entity Extraction**: Extract structured information from unstructured text.
-- **Question Answering**: Develop intelligent systems such as chatbots and educational tutors.
-- **Text Translation**: Facilitate communication across different languages.
-- **Text Analysis and Recommendations**: Analyze sentiment and patterns to personalize experiences.
-- **Dialogue and Conversation**: Generate context-aware interactions for games and storytelling.
-- **Code Explanation and Generation**: Assist in code reviews and generate boilerplate code.
-
-<br/>
-
-#### Create a message
-
-You can send a structured list of input messages containing text and/or image content, and the model will generate the next message in the conversation.
-
-The Messages API can be used for both single-turn requests and multi-turn, stateless conversations.
-
-Example :
-```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat;
-
-  var Chat := Anthropic.Chat.Create(
-     procedure (Params: TChatParams)
-     begin
-       Params.Model(Models[ClaudeSonnet3_5]);
-       Params.MaxTokens(1024);
-       Params.System('You are an expert in art history');
-       Params.Messages([TChatMessagePayload.User('Can you enlighten me on the technique of chiaroscuro and also on the Flemish school of painting in the 18th century ?')]);
-     end);
-
-  //Set a TMemo on a form to display the response
-  Memo1.Lines.BeginUpdate;  
-  try
-    for var Item in Chat.Content do
-      begin
-        Memo1.Text := Memo1.Text + sLineBreak + Item.Text + sLineBreak;
-        Memo1.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-      end;
-  finally
-    Memo1.Lines.EndUpdate;
-    Chat.Free;
-  end;
-```
-
-<br/>
-
-#### Streaming messages
-
-When generating a Message, you can enable "stream": true to progressively receive the response through server-sent events (SSE).
-
-Example :
-```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat;
-
-  Anthropic.Chat.CreateStream(
-    procedure (Params: TChatParams)
-    begin
-      Params.Model(Models[ClaudeHaiku3]);
-      Params.MaxTokens(1024);
-      Params.System([ TSystemPayload.Create('You are an expert in art history') ]);
-      Params.Messages([TChatMessagePayload.User('Can you enlighten me on the technique of chiaroscuro and also on the Flemish school of painting in the 18th century ?')]);
-      Params.Stream(True);
-    end,
-    procedure(var Chat: TChat; IsDone: Boolean; var Cancel: Boolean)
-    begin
-      if not IsDone then
-        begin
-          Memo1.Lines.BeginUpdate;
-          try
-            var S := Chat.Delta.Text;
-            for var i := 1 to S.Length do
-              if (S[i] <> #10) and (S[i] <> #13) then
-                Memo1.Text := Memo1.Text + S[i] else
-                Memo1.Text := Memo1.Text + sLineBreak;
-            Memo1.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-          finally
-            Memo1.Lines.EndUpdate;
-          end;
-        end
-      else
-        //is done
-        begin
-          Memo1.Text := Memo1.Text + sLineBreak + '--- Done';
-          Memo1.Text := Memo1.Text + sLineBreak + Chat.Usage.InputTokens.ToString;
-          Memo1.Text := Memo1.Text + sLineBreak + Chat.Usage.OutputTokens.ToString;
-        end;
-    end);
-  end;
-```
-
-<br/>
-
-### Callbacks (asynchronous mode)
+## Asynchronous callback mode management
 
 In the context of asynchronous methods, for a method that does not involve streaming, callbacks use the following generic record: `TAsynCallBack<T> = record` defined in the `Anthropic.Async.Support.pas` unit. This record exposes the following properties:
 
@@ -246,8 +129,8 @@ For methods requiring streaming, callbacks use the generic record `TAsynStreamCa
    ... 
        Sender: TObject;
        OnStart: TProc<TObject>;
-       OnSuccess: TProc<TObject, T>;
        OnProgress: TProc<TObject, T>;
+       OnSuccess: TProc<TObject, T>;
        OnError: TProc<TObject, string>;
        OnCancellation: TProc<TObject>;
        OnDoCancel: TFunc<Boolean>;
@@ -257,170 +140,424 @@ The name of each property is self-explanatory; if needed, refer to the internal 
 
 <br>
 
-### Asynchronous chat
-
-A mechanism for handling both streamed and non-streamed messages has been implemented to enable asynchronous use of the API.
-
-This approach allows for flexibility in how responses are received:
-
- - Create a Message ASYNC:
-
-- Streaming Messages ASYNC
-
-This setup ensures efficient asynchronous workflows, offering seamless handling of responses for various messaging scenarios.
+>[!NOTE]
+> All methods managed by the wrapper are designed to support both synchronous and asynchronous execution modes. This dual-mode functionality ensures greater flexibility for users, allowing them to choose the approach that best suits their application's requirements and workflow.
 
 <br/>
 
-#### Create a message ASYNC
+## Simplified Unit Declaration
 
-You can send a structured list of input messages containing text and/or image content, and the model will asynchronously generate the next message in the conversation.
+To streamline the use of the API wrapper, the process for declaring units has been simplified. Regardless of the methods being utilized, you only need to reference the following two core units:
 
-The Messages API can be used for both single-turn requests and multi-turn, stateless conversations, with responses being processed asynchronously.
+```Pascal
+  uses
+    Anthropic, Anthropic.Types;
+```
 
->[!WARNING]
->It is necessary to extend the scope of the interface :
+If required, you may also include any plugin units developed for specific function calls (e.g., `Anthropic.Functions.Example`). This simplification ensures a more intuitive and efficient integration process for developers.
+
+<br/>
+
+# Usage
+
+## Initialization
+
+To initialize the API instance, you need to [obtain an API key from Anthropic](https://console.anthropic.com/settings/keys/).
+
+Once you have a token, you can initialize `IAnthropic` interface, which is an entry point to the API.
+
+
+> [!NOTE]
+>```Pascal
+>uses Anthropic;
 >
->    - Anthropic := TAnthropicFactory.CreateInstance(BaererKey)
+>var Anthropic := TAnthropicFactory.CreateInstance(API_KEY);
+>```
+
+<br/>
+
+To implement batch processing or enable caching, it is necessary to specify the corresponding elements in the request header :
+- `Prompt Caching (Beta)`: To access this feature, include the `anthropic-beta: prompt-caching-2024-07-31` header in your API requests. 
+- `Message Batches API (Beta)`: To use this feature, include the `anthropic-beta: message-batches-2024-09-24` header in your API requests, or call client.beta.messages.batches in your SDK. 
+
+To automate the process, the `TAnthropicFactory` class provides two class methods. These methods simplify the code by removing the need to manually handle request headers :
+- **CreateBatchingInstance**
+- **CreateCachingInstance**
+
+<br/>
+
+To simplify the tutorial and provide practical, ready-to-use code examples, we will use the following instances:
+
+```Pascal
+  Anthropic: IAnthropic;
+  AnthropicBatch: IAnthropic;
+  AnthropicCaching: IAnthropic;
+
+.....
+  // Configuration in the OnCreate event
+  Anthropic := TAnthropicFactory.CreateInstance(API_KEY);
+  AnthropicBatch := TAnthropicFactory.CreateBatchingInstance(API_KEY);
+  AnthropicCaching := TAnthropicFactory.CreateCachingInstance(API_KEY); 
+```
+
+<br/>
+
+## Claude Models Overview
+
+Claude models include a snapshot date in their name, ensuring a stable and identical version across platforms. The `-latest` alias points to the most recent version for testing convenience, but using a specific version is recommended in production to ensure stability. The -latest alias is updated with new releases while maintaining the same usage conditions and pricing.
+
+Refer to the [official documentation](https://docs.anthropic.com/en/docs/about-claude/models)
+
+### List of models
+
+The list of available models can be retrieved from the Models API response. The models are ordered by release date, with the most recently published appearing first.
+
+>[!TIP]
+> For the purposes of this tutorial, we have chosen to use the `Anthropic.Tutorial.FMX` unit in the examples. However, you are free to substitute it with its VCL equivalent, `Anthropic.Tutorial.VCL`.
 >
->by declaring it in the application's onCreate method.
+
+```Pascal
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
+  
+  //Asynchronous example
+  Anthropic.Models.AsynList(
+    procedure (Params: TListModelsParams)
+    begin
+      Params.Limite(10);
+    end,
+    function : TAsynModels
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+  //Synchronous example
+//  var Value := Anthropic.Models.List(
+//    procedure (Params: TListModelsParams)
+//    begin
+//      Params.Limite(10);
+//    end);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+```
+
+<br/>
+
+### Retrieve a model
+
+The Models API allows you to retrieve information about a specific model or map a model alias to its unique model ID.
+
+```Pascal
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
+
+  //Asynchronous example
+  Anthropic.Models.AsynRetrieve(Model_ID,
+    function : TAsynModel
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+  //Synchronous example
+//  var Value := Anthropic.Models.Retrieve(Model_ID);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+```
+
+## Embeddings
+
+`Anthropic` does not offer its own models for **text embeddings**. While the documentation mentions `Voyage AI` as an embeddings provider, we do not include access to their APIs in our **GitHub repository**. This is because providing tools for Voyage models falls outside the scope of our focus on `Anthropic` APIs exclusively. Users seeking embedding solutions are encouraged to explore various vendors to find the best fit for their needs, but our resources concentrate solely on supporting `Anthropic's` offerings.
+
+<br/>
+
+## Chats
+
+`Claude` is capable of performing a wide range of text-based tasks. Trained on code, prose, and various natural language inputs, `Claude` excels in generating text outputs in response to detailed prompts. For optimal results, prompts should be written as detailed natural language instructions, and further improvements can be achieved through prompt engineering.
+
+- **Text Summarization**: Condense lengthy content into key insights.
+- **Content Generation:** Create engaging content like blog posts, emails, and product descriptions.
+- **Data and Entity Extraction**: Extract structured information from unstructured text.
+- **Question Answering**: Develop intelligent systems such as chatbots and educational tutors.
+- **Text Translation**: Facilitate communication across different languages.
+- **Text Analysis and Recommendations**: Analyze sentiment and patterns to personalize experiences.
+- **Dialogue and Conversation**: Generate context-aware interactions for games and storytelling.
+- **Code Explanation and Generation**: Assist in code reviews and generate boilerplate code.
+
+Refer to [the prompt engineering overview](https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview)
+
+<br/>
+
+### Create a message
+
+You can send a structured list of input messages containing text and/or image content, and the model will generate the next message in the conversation.
+
+The Messages API can be used for both single-turn requests and multi-turn, stateless conversations.
 
 Example :
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat;
-  
-  // WARNING - Move the following line into the main OnCreate
-  var Anthropic := TAnthropicFactory.CreateInstance(BaererKey);
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
 
+  //Asynchronous example
   Anthropic.Chat.AsynCreate(
      procedure (Params: TChatParams)
      begin
-       Params.Model(Models[ClaudeOpus3]);
+       Params.Model('claude-3-5-sonnet-20241022');
        Params.MaxTokens(1024);
-       Params.System([ TSystemPayload.Create('You are an expert in art history') ]);
-       Params.Messages([TChatMessagePayload.User('Can you enlighten me on the technique of chiaroscuro and also on the Flemish school of painting in the 18th century ?')]);
+       Params.System('You are an expert in art history');
+       Params.Messages([
+         FromUser('Can you enlighten me on the technique of chiaroscuro and also on the Flemish school of painting in the 18th century ?')
+       ]);
      end,
-
      function : TAsynChat
      begin
-       Result.Sender := Memo1; //Using TMemo for displaying
-
-       Result.OnStart := nil;
-
-       Result.OnSuccess :=
-         procedure (Sender: TObject; Chat: TChat)
-         begin
-           var M := Sender as TMemo;
-           M.Lines.BeginUpdate;
-           try
-             for var Item in Chat.Content do
-               begin
-                 M.Text := M.Text + sLineBreak + Item.Text + sLineBreak;
-                 M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-               end;
-           finally
-             M.Lines.EndUpdate;
-           end;
-         end;
-
-       Result.OnError :=
-         procedure (Sender: TObject; value: string)
-         begin
-           (Sender as TMemo).Text := Value;
-         end;
+       Result.Sender := TutorialHub;
+       Result.OnStart := Start;
+       Result.OnSuccess := Display;
+       Result.OnError := Display;
      end);
+
+    //Synchronous example
+//  var Chat := Anthropic.Chat.Create(
+//     procedure (Params: TChatParams)
+//     begin
+//       Params.Model('claude-3-5-sonnet-20241022');
+//       Params.MaxTokens(1024);
+//       Params.System('You are an expert in art history');
+//       Params.Messages([
+//         FromUser('Can you enlighten me on the technique of chiaroscuro and also on the Flemish school of painting in the 18th century ?')
+//       ]);
+//     end);
+//  try
+//    Display(TutorialHub, Chat);
+//    DisplayUsage(TutorialHub, Chat);
+//  finally
+//    Chat.Free;
+//  end;
 ```
+
 <br/>
 
-#### Streaming messages ASYNC
+### Streaming messages
 
-When generating a Message, you can set 'async': true to asynchronously receive the response once it is fully processed, without the need for server-sent events (SSE).
-
->[!WARNING]
->It is necessary to extend the scope of the interface :
->
->    - Anthropic := TAnthropicFactory.CreateInstance(BaererKey)
->
->by declaring it in the application's onCreate method.
+When generating a Message, you can enable "stream": true to progressively receive the response through server-sent events (SSE).
 
 Example :
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat;
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
 
-  // WARNING - Move the following line into the main OnCreate
-  var Anthropic := TAnthropicFactory.CreateInstance(BaererKey);  
-
-  //Set a TCheckBox on the form  
-  CheckBox1.Checked := False;
-  
+  //Asynchronous example
   Anthropic.Chat.AsynCreateStream(
-      procedure(Params: TChatParams)
-      begin
-        Params.Model(Models[ClaudeSonnet3_5]);
-        Params.MaxTokens(1024);
-        Params.System([ TSystemPayload.Create('You are an expert in art history') ]);
-        Params.Messages([TChatMessagePayload.User('Can you enlighten me on the technique of chiaroscuro and also on the Flemish school of painting in the 18th century ?')]);
-        Params.Stream(True);
-      end,
+     procedure (Params: TChatParams)
+     begin
+       Params.Model('claude-3-5-sonnet-20241022');
+       Params.MaxTokens(1024);
+       Params.System('You are an expert in art history');
+       Params.Messages([
+         FromUser('Can you enlighten me on the technique of chiaroscuro and also on the Flemish school of painting in the 18th century ?')
+       ]);
+       Params.Stream;
+     end,
+     function : TAsynChatStream
+     begin
+       Result.Sender := TutorialHub;
+       Result.OnStart := Start;
+       Result.OnProgress := DisplayStream;
+       Result.OnSuccess := DisplayUsage;
+       Result.OnError := Display;
+       Result.OnDoCancel := DoCancellation;
+       Result.OnCancellation := Cancellation;
+     end);
 
-      function: TAsynChatStream
-      begin
-        Result.Sender := Memo1;  //Using TMemo for displaying
-
-        Result.OnProgress :=
-          procedure (Sender: TObject; Chat: TChat)
-          begin
-            var M := Sender as TMemo;
-            M.Lines.BeginUpdate;
-            try
-              var S := Chat.Delta.Text;
-              for var i := 1 to S.Length do
-                if (S[i] <> #10) and (S[i] <> #13) then
-                  M.Text := M.Text + S[i] else
-                  M.Text := M.Text + sLineBreak;
-              M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-            finally
-              M.Lines.EndUpdate;
-            end;
-          end;
-
-        Result.OnSuccess :=
-          procedure (Sender: TObject; Chat: TChat)
-          begin
-            var M := Sender as TMemo;
-            M.Lines.BeginUpdate;
-            try
-              M.Text := M.Text + sLineBreak + '--- Done';
-              M.Text := M.Text + sLineBreak + Chat.Usage.InputTokens.ToString;
-              M.Text := M.Text + sLineBreak + Chat.Usage.OutputTokens.ToString;
-              M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-            finally
-              M.Lines.EndUpdate;
-            end;
-          end;
-
-        Result.OnError :=
-          procedure (Sender: TObject; Value: string)
-          begin
-            (Sender as TMemo).Text := Value;
-          end;
-
-        Result.OnDoCancel :=
-          function: Boolean
-          begin
-            Result := CheckBox1.Checked; // Click on checkbox to cancel
-          end;
-
-        Result.OnCancellation :=
-          procedure (Sender: TObject)
-          begin
-            // Processing when process has been canceled
-          end;
-      end);
+    //Synchronous example
+//  Anthropic.Chat.CreateStream(
+//     procedure (Params: TChatParams)
+//     begin
+//       Params.Model('claude-3-5-sonnet-20241022');
+//       Params.MaxTokens(1024);
+//       Params.System('You are an expert in art history');
+//       Params.Messages([
+//         FromUser('Can you enlighten me on the technique of chiaroscuro and also on the Flemish school of painting in the 18th century ?')
+//       ]);
+//       Params.Stream;
+//     end,
+//     procedure (var Chat: TChat; IsDone: Boolean; var Cancel: Boolean)
+//     begin
+//       if not IsDone then
+//         DisplayStream(TutorialHub, Chat) else
+//         DisplayUsage(TutorialHub, Chat);
+//       Application.ProcessMessages;
+//     end);
 ```
 
 <br/>
 
-### Vision
+### Multi-turn conversation
+
+The `Anthropic API` enables the creation of interactive chat experiences tailored to your users' needs. Its chat functionality supports multiple rounds of questions and answers, allowing users to gradually work toward solutions or receive help with complex, multi-step issues. This capability is especially useful for applications requiring ongoing interaction, such as:
+- **Chatbots**
+- **Educational tools**
+- **Customer support assistants.**
+
+```Pascal
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
+
+  //Streamed Asynchronous example
+  Anthropic.Chat.AsynCreateStream(
+     procedure (Params: TChatParams)
+     begin
+       Params.Model('claude-3-5-sonnet-20241022');
+       Params.MaxTokens(1024);
+       Params.System('You are a funny domestic assistant.');
+       Params.Messages([
+         FromUser('Hello'),
+         FromAssistant('Great to meet you. What would you like to know?'),
+         FromUser('I have two dogs in my house. How many paws are in my house?')
+       ]);
+       Params.Stream;
+     end,
+     function : TAsynChatStream
+     begin
+       Result.Sender := TutorialHub;
+       Result.OnStart := Start;
+       Result.OnProgress := DisplayStream;
+       Result.OnSuccess := DisplayUsage;
+       Result.OnError := Display;
+       Result.OnDoCancel := DoCancellation;
+       Result.OnCancellation := Cancellation;
+     end);
+```
+
+>[!TIP]
+> The `FromUser` and `FromAssistant` methods streamline role management while enhancing code readability. They eliminate the need to use the `Payload` alias (e.g., `Payload.User('Hello')`) or the `TChatMessagePayload` type (e.g., `TChatMessagePayload.User('Hello')`).
+>
+
+<br/>
+
+### Token counting
+
+Token counting estimates the number of tokens in a message before sending it, helping manage costs and optimize message structure. The tool provides an estimate based on structured inputs (text, tools, PDFs) and supports Claude 3 and 3.5 models.
+
+```Pascal
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
+
+  //Asynchronous example
+  Anthropic.Chat.AsynTokenCount(
+    procedure (Params: TChatParams)
+    begin
+      Params.Model('claude-3-5-sonnet-20241022');
+       Params.System(
+         'You are an expert in art history'
+       );
+       Params.Messages([
+         FromUser('In which artistic movement could we classify the Eiffel Tower?')
+       ]);
+    end,
+    function : TAsynTokenCount
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+  //Synchronous example
+//  var Value := Anthropic.Chat.TokenCount(
+//    procedure (Params: TChatParams)
+//    begin
+//      Params.Model('claude-3-5-sonnet-20241022');
+//       Params.System(
+//         'You are an expert in art history'
+//       );
+//       Params.Messages([
+//         FromUser('In which artistic movement could we classify the Eiffel Tower?')
+//       ]);
+//    end);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
+```
+
+<br/>
+
+## Document processing
+
+`Claude 3.5 Sonnet` can extract text, analyze charts, and interpret content from `PDF documents`. Example use cases include financial report analysis, legal document extraction, translation, and data structuring.
+
+PDF requirements:
+- **Size:** up to 32 MB.
+- **Pages:** up to 100.
+- **Format:** standard, unprotected PDF.
+
+Refer to the [official documentation](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support).
+
+This feature is available via API on `Claude 3.5 Sonnet` models and will soon be supported on additional platforms.
+
+```Pascal
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
+
+  var Pdf := 'https://assets.anthropic.com/m/1cd9d098ac3e6467/original/Claude-3-Model-Card-October-Addendum.pdf';
+
+  //Streamed  asynchronous example
+  Anthropic.Chat.AsynCreateStream(
+      procedure(Params: TChatParams)
+      begin
+        Params.Model('claude-3-5-sonnet-20241022');
+        Params.MaxTokens(1024);
+        Params.Messages([
+          FromPdf('Which model has the highest human preference win rates across each use-case?', Pdf)
+        ]);
+        Params.Stream(True);
+      end,
+      function: TAsynChatStream
+      begin
+        Result.Sender := TutorialHub;
+        Result.OnStart := Start;
+        Result.OnProgress := DisplayStream;
+        Result.OnSuccess := DisplayUsage;
+        Result.OnError := Display;
+        Result.OnDoCancel := DoCancellation;
+        Result.OnCancellation := Cancellation;
+      end);
+
+  //Streamed synchronous example
+//  Anthropic.Chat.CreateStream(
+//      procedure(Params: TChatParams)
+//      begin
+//        Params.Model('claude-3-5-sonnet-20241022');
+//        Params.MaxTokens(1024);
+//        Params.Messages([
+//          FromPdf('Which model has the highest human preference win rates across each use-case?', Pdf)
+//        ]);
+//        Params.Stream(True);
+//      end,
+//      procedure (var Chat: TChat; IsDone: Boolean; var Cancel: Boolean)
+//      begin
+//        if not IsDone then
+//          DisplayStream(TutorialHub, Chat) else
+//          DisplayUsage(TutorialHub, Chat);
+//        Application.ProcessMessages;
+//      end);
+```
+
+>[!TIP]
+> The `FromPdf` method can process PDF files from either a URL or local disk storage.
+>
+
+<br/>
+
+## Vision
 
 All `Claude version 3` models add vision capabilities, allowing them to analyze both images and text, expanding their potential for applications requiring multimodal understanding. See also the [official documentation](https://docs.anthropic.com/en/docs/build-with-claude/vision/).
 
@@ -429,87 +566,111 @@ Internally, this data is processed to ensure the correct operation of the vision
 
 <br/>
 
-#### Passing a Base64 Encoded Image
+### Passing a Base64 Encoded Image
 
 Example :
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat;
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
   
   var Ref := 'T:\My_Folder\Images\Picture.png';
-  var Chat := Anthropic.Chat.Create(
+
+  //Streamed asynchronous example
+  Anthropic.Chat.AsynCreateStream(
      procedure (Params: TChatParams)
      begin
-       Params.Model(Models[ClaudeHaiku3]);
+       Params.Model('claude-3-5-sonnet-20241022');
        Params.MaxTokens(1024);
-       Params.Messages([TChatMessagePayload.User('Describe this image.', [Ref])]);
-     end);
-
-  Memo1.Lines.BeginUpdate;
-  try
-    for var Item in Chat.Content do
-      begin
-        if Item.&Type = 'text' then
-          begin
-            Memo1.Text := Memo1.Text + Item.Text + sLineBreak;
-            Memo1.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-          end
-      end;
-  finally
-    Memo1.Lines.EndUpdate;
-    Chat.Free;
-  end;
-```
-
-<br/>
-
-Example - Asynchronous vision :
-
-```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat;
-
-  // WARNING - Move the following line into the main OnCreate
-  var Anthropic := TAnthropicFactory.CreateInstance(BaererKey);
-
-  var Ref := 'T:\My_Folder\Images\Picture.png';
-  Anthropic.Chat.AsynCreate(
-     procedure (Params: TChatParams)
-     begin
-       Params.Model(Models[ClaudeOpus3]);
-       Params.MaxTokens(1024);
-       Params.Messages([TChatMessagePayload.User('Describe this image.', [Ref])]);
+       Params.Messages([
+         FromUser('Describe this image.', [Ref])
+       ]);
+       Params.Stream;
      end,
-
-     function : TAsynChat
+     function : TAsynChatStream
      begin
-       Result.Sender := Memo1; //Using TMemo for displaying
-
-       Result.OnSuccess :=
-         procedure (Sender: TObject; Chat: TChat)
-         begin
-           var M := Sender as TMemo;
-           M.Lines.BeginUpdate;
-           try
-             for var Item in Chat.Content do
-               begin
-                 M.Text := M.Text + sLineBreak + Item.Text + sLineBreak;
-                 M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-               end;
-           finally
-             M.Lines.EndUpdate;
-           end;
-         end;
-
-       Result.OnError :=
-         procedure (Sender: TObject; value: string)
-         begin
-           (Sender as TMemo).Text := Value;
-         end;
+       Result.Sender := TutorialHub;
+       Result.OnStart := Start;
+       Result.OnProgress := DisplayStream;
+       Result.OnSuccess := DisplayUsage;
+       Result.OnError := Display;
+       Result.OnDoCancel := DoCancellation;
+       Result.OnCancellation := Cancellation;
      end);
+
+    //Streamed synchronous example
+//  Anthropic.Chat.CreateStream(
+//     procedure (Params: TChatParams)
+//     begin
+//       Params.Model('claude-3-5-sonnet-20241022');
+//       Params.MaxTokens(1024);
+//       Params.Messages([
+//         FromUser('Describe this image.', [Ref])
+//       ]);
+//       Params.Stream;
+//     end,
+//     procedure (var Chat: TChat; IsDone: Boolean; var Cancel: Boolean)
+//     begin
+//       if not IsDone then
+//         DisplayStream(TutorialHub, Chat) else
+//         DisplayUsage(TutorialHub, Chat);
+//       Application.ProcessMessages;
+//     end);
 ```
 
 <br/>
 
-### Function calling
+### Passing an Image URL
+
+Example :
+```Pascal
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
+
+  var Ref := 'https://tripfixers.com/wp-content/uploads/2019/11/eiffel-tower-with-snow.jpeg';
+
+  //Streamed asynchronous example
+  Anthropic.Chat.AsynCreateStream(
+     procedure (Params: TChatParams)
+     begin
+       Params.Model('claude-3-5-sonnet-20241022');
+       Params.MaxTokens(1024);
+       Params.Messages([
+         FromUser('Describe this image.', [Ref])
+       ]);
+       Params.Stream;
+     end,
+     function : TAsynChatStream
+     begin
+       Result.Sender := TutorialHub;
+       Result.OnStart := Start;
+       Result.OnProgress := DisplayStream;
+       Result.OnSuccess := DisplayUsage;
+       Result.OnError := Display;
+       Result.OnDoCancel := DoCancellation;
+       Result.OnCancellation := Cancellation;
+     end);
+
+    //Streamed synchronous example
+//  Anthropic.Chat.CreateStream(
+//     procedure (Params: TChatParams)
+//     begin
+//       Params.Model('claude-3-5-sonnet-20241022');
+//       Params.MaxTokens(1024);
+//       Params.Messages([
+//         FromUser('Describe this image.', [Ref])
+//       ]);
+//       Params.Stream;
+//     end,
+//     procedure (var Chat: TChat; IsDone: Boolean; var Cancel: Boolean)
+//     begin
+//       if not IsDone then
+//         DisplayStream(TutorialHub, Chat) else
+//         DisplayUsage(TutorialHub, Chat);
+//       Application.ProcessMessages;
+//     end);
+```
+
+<br/>
+
+## Function calling
 
 Claude can connect with external client-side tools provided by users to perform various tasks more efficiently. 
 
@@ -521,7 +682,7 @@ For more details, refer to the Anthropic [website documentation.](https://docs.a
 
 <br/>
 
-#### Overview of Tool Use in Claude
+### Overview of Tool Use in Claude
 
 `Here's a quick guide on how to implement tool use:` <br/>
 - **Provide Tools & User Prompt**: Define tools in your API request with names, descriptions, and input schemas. Add a user prompt, e.g., “What’s the weather in San Francisco?” <br/>
@@ -539,254 +700,143 @@ For more details, refer to the Anthropic [website documentation.](https://docs.a
 
 <br/>
 
-#### Examples
+### Examples
 
-1 : What’s the weather in Paris?
+What’s the weather in Paris?
 
 In the `Anthropic.Functions.Example` unit, there is a class that defines a function which `Claude` can choose to use or not, depending on the options provided. This class inherits from a parent class defined in the `Anthropic.Functions.Core` unit. To create new functions, you can derive from the `TFunctionCore class` and define a new plugin.
 
+In this unit, this schema will be used for function calls.
+
+```Json
+{
+    "type": "object",
+    "properties": {
+         "location": {
+             "type": "string",
+             "description": "The city and department, e.g. Marseille, 13"
+         },
+         "unit": {
+             "type": "string",
+             "enum": ["celsius", "fahrenheit"]
+         }
+     },
+     "required": ["location"]
+  }
+```
+<br/>
+
+1. We will use the TWeatherReportFunction plugin defined in the [`Anthropic.Functions.Example`](#https://github.com/MaxiDonkey/DelphiAnthropic/blob/main/source/Anthropic.Functions.Example.pas) unit.
+
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Functions.Core, Anthropic.Functions.Example;
-  
-  var WeatherFunc := TWeatherReportFunction.CreateInstance;
-  
-  var Chat := Anthropic.Chat.Create(
+  var WeatherFunc := TWeatherReportFunction.CreateInstance;  
+  //See step 3
+```
+
+<br/>
+
+2. We then define a method to display the **result** of the query using the **Weather tool**.
+
+```Pascal
+procedure TMy_Form.WeatherExecuteStream(const Value: string);
+begin
+  //Asynchronous example
+  Anthropic.Chat.AsynCreateStream(
      procedure (Params: TChatParams)
      begin
-       Params.Model(Models[ClaudeHaiku3]);
+       Params.Model('claude-3-5-sonnet-20241022');
        Params.MaxTokens(1024);
-       Params.Messages([TChatMessagePayload.User('What’s the weather in Paris?')]);
+       Params.Messages([
+         FromUser(Value)
+       ]);
+       Params.System('You are a star weather presenter on a national TV channel.');
+       Params.Stream;
+
+     end,
+     function : TAsynChatStream
+     begin
+       Result.Sender := TutorialHub;
+       Result.OnProgress := DisplayStream;
+       Result.OnSuccess := DisplayUsage;
+       Result.OnError := Display;
+     end);
+
+    //Synchronous example
+//  Anthropic.Chat.CreateStream(
+//     procedure (Params: TChatParams)
+//     begin
+//       Params.Model('claude-3-5-sonnet-20241022');
+//       Params.MaxTokens(1024);
+//       Params.Messages([
+//         FromUser(Value)
+//       ]);
+//       Params.System('You are a star weather presenter on a national TV channel.');
+//       Params.Stream;
+//     end,
+//     procedure (var Chat: TChat; IsDone: Boolean; var Cancel: Boolean)
+//     begin
+//       if not IsDone then
+//         DisplayStream(TutorialHub, Chat) else
+//         DisplayUsage(TutorialHub, Chat);
+//     end);
+end;
+
+```
+
+<br/>
+
+3. Building the query using the Weather tool
+
+```Pascal
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX, Anthropic.Functions.Example;
+  
+  var WeatherFunc := TWeatherReportFunction.CreateInstance;
+  TutorialHub.ToolCall := WeatherExecute;
+  TutorialHub.Tool := WeatherFunc;
+
+  //Asynchronous example
+  Anthropic.Chat.AsynCreate(
+     procedure (Params: TChatParams)
+     begin
+       Params.Model('claude-3-5-sonnet-20241022');
+       Params.MaxTokens(1024);
+       Params.Messages([
+         FromUser('What is the weather in Paris ?')
+       ]);
        Params.ToolChoice(auto);
        Params.Tools([WeatherFunc]);
-     end);
-
-  Memo1.Lines.BeginUpdate;
-  try
-    for var Item in Chat.Content do
-      begin
-        if Item.&Type = 'text' then
-          begin
-            Memo1.Text := Memo1.Text + Item.Text + sLineBreak;
-            Memo1.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-          end
-        else
-        if Item.&Type = 'tool_use' then
-          begin
-            var Arguments := Format('%s' + sLineBreak + '%s', ['What’s the weather in Paris?', WeatherFunc.Execute(Item.Input)]);
-            WeatherExecute(Arguments);
-          end;
-      end;
-  finally
-    Memo1.Lines.EndUpdate;
-    Chat.Free;
-  end;
-
-...
-
-procedure WeatherExecute(const Value: string);
-begin
-  var Chat := Anthropic.Chat.Create(
-     procedure (Params: TChatParams)
+     end,
+     function : TAsynChat
      begin
-       Params.Model(Models[ClaudeHaiku3]);
-       Params.MaxTokens(1024);
-       Params.Messages([TChatMessagePayload.User(Value)]);
+       Result.Sender := TutorialHub;
+       Result.OnStart := Start;
+       Result.OnSuccess := Display;
+       Result.OnError := Display;
      end);
-  try
-    for var Item in Chat.Content do
-      begin
-        if Item.&Type = 'text' then
-          begin
-            Memo1.Text := Memo1.Text + Item.Text + sLineBreak;
-            Memo1.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-          end
-      end;
-  finally
-    Chat.Free;
-  end;
-end;
+
+    //Synchronous example
+//  var Chat := Anthropic.Chat.Create(
+//     procedure (Params: TChatParams)
+//     begin
+//       Params.Model('claude-3-5-sonnet-20241022');
+//       Params.MaxTokens(1024);
+//       Params.Messages([
+//         FromUser('What is the weather in Paris ?')
+//       ]);
+//       Params.ToolChoice(auto);
+//       Params.Tools([WeatherFunc]);
+//     end);
+//  try
+//    Display(TutorialHub, Chat);
+//  finally
+//    Chat.Free;
+//  end;
 ```
 
 <br/>
 
-2 : What’s the weather in Paris? (asynchronous streaming mode)
 
-```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Functions.Core, Anthropic.Functions.Example;
-
-  // WARNING - Move the following line into the main OnCreate
-  var Anthropic := TAnthropicFactory.CreateInstance(BaererKey);
-
-  CheckBox1.Checked := False;
-
-  var WeatherFunc := TWeatherReportFunction.CreateInstance;
-
-  Anthropic.Chat.AsynCreateStream(
-      procedure(Params: TChatParams)
-      begin
-        Params.Model(Models[ClaudeSonnet3_5]);
-        Params.MaxTokens(1024);
-        Params.Messages([TChatMessagePayload.User('What’s the weather in Paris?')]);
-        Params.ToolChoice(auto);
-        Params.Tools([WeatherFunc]);
-        Params.Stream(True);
-      end,
-
-      function: TAsynChatStream
-      begin
-        Result.Sender := Memo1; 
-
-        Result.OnProgress :=
-          procedure (Sender: TObject; Chat: TChat)
-          begin
-            var M := Sender as TMemo;
-            M.Lines.BeginUpdate;
-            try
-              var S := Chat.Delta.Text;
-              for var i := 1 to S.Length do
-                if (S[i] <> #10) and (S[i] <> #13) then
-                  M.Text := M.Text + S[i] else
-                  M.Text := M.Text + sLineBreak;
-              M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-            finally
-              M.Lines.EndUpdate;
-            end;
-          end;
-
-        Result.OnSuccess :=
-          procedure (Sender: TObject; Chat: TChat)
-          begin
-            var M := Sender as TMemo;
-            if Chat.StopReason = tool_use then
-              begin
-                var Arguments := Format('%s' + sLineBreak + '%s', ['What’s the weather in Paris?', WeatherFunc.Execute(Chat.Delta.Input)]);
-                WeatherExecuteStream(Arguments);
-                Exit;
-              end;
-
-            M.Lines.BeginUpdate;
-            try
-              M.Text := M.Text + sLineBreak + '--- Done';
-              M.Text := M.Text + sLineBreak + Chat.Usage.InputTokens.ToString;
-              M.Text := M.Text + sLineBreak + Chat.Usage.OutputTokens.ToString;
-              M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-            finally
-              M.Lines.EndUpdate;
-            end;
-          end;
-
-        Result.OnError :=
-          procedure (Sender: TObject; Value: string)
-          begin
-            ShowMessage(Value); // Display error message
-          end;
-
-        Result.OnDoCancel :=
-          function: Boolean
-          begin
-            Result := CheckBox1.Checked; // Click on checkbox to cancel
-          end;
-
-        Result.OnCancellation :=
-          procedure (Sender: TObject)
-          begin
-            // Processing when process has been canceled
-          end;
-      end);
-
-...
-
-procedure WeatherExecuteStream(const Value: string);
-begin
-  Anthropic.Chat.AsynCreateStream(
-      procedure(Params: TChatParams)
-      begin
-        Params.Model(Models[ClaudeHaiku3]);
-        Params.MaxTokens(1024);
-        Params.Messages([TChatMessagePayload.User(Value)]);
-        Params.Stream(True);
-      end,
-
-      function: TAsynChatStream
-      begin
-        Result.Sender := Memo1;  
-
-        Result.OnStart :=
-          procedure (Sender: TObject)
-          begin
-            var M := Sender as TMemo;
-            if not (M.Text = EmptyStr) then
-              begin
-                M.Text := M.Text + sLineBreak + sLineBreak;
-              end;
-          end;
-
-        Result.OnProgress :=
-          procedure (Sender: TObject; Chat: TChat)
-          begin
-            var M := Sender as TMemo;
-            M.Lines.BeginUpdate;
-            try
-              var S := Chat.Delta.Text;
-              for var i := 1 to S.Length do
-                if (S[i] <> #10) and (S[i] <> #13) then
-                  M.Text := M.Text + S[i] else
-                  M.Text := M.Text + sLineBreak;
-              M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-            finally
-              M.Lines.EndUpdate;
-            end;
-          end;
-
-        Result.OnSuccess :=
-          procedure (Sender: TObject; Chat: TChat)
-          begin
-            var M := Sender as TMemo;
-            M.Lines.BeginUpdate;
-            try
-              M.Text := M.Text + sLineBreak + '--- Done';
-              M.Text := M.Text + sLineBreak + Chat.Usage.InputTokens.ToString;
-              M.Text := M.Text + sLineBreak + Chat.Usage.OutputTokens.ToString;
-              M.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-            finally
-              M.Lines.EndUpdate;
-            end;
-          end;
-
-        Result.OnError :=
-          procedure (Sender: TObject; Value: string)
-          begin
-            ShowMessage(Value); // Display error message
-          end;
-
-        Result.OnDoCancel :=
-          function: Boolean
-          begin
-            Result := CheckBox1.Checked; // Click on checkbox to cancel
-          end;
-
-        Result.OnCancellation :=
-          procedure (Sender: TObject)
-          begin
-            // Processing when process has been canceled
-          end;
-      end);
-end;
-```
-
-<br/>
-
-## Beta versions
-
-Two new features now available in public beta:
-
-`Prompt Caching (Beta)`: To access this feature, include the `anthropic-beta: prompt-caching-2024-07-31` header in your API requests. 
-
-`Message Batches API (Beta)`: To use this feature, include the `anthropic-beta: message-batches-2024-09-24` header in your API requests, or call client.beta.messages.batches in your SDK. 
-
-<br/>
-
-### Prompt Caching
+## Prompt Caching
 
 `Prompt Caching` optimizes API usage by caching prompt prefixes, reducing processing time and costs for repetitive tasks. If a prompt prefix is cached from a recent query, it's reused; otherwise, the full prompt is processed and cached for future use. The cache lasts **5 minutes** and **is refreshed with each use**, making it ideal for prompts with many examples, background information, or consistent instructions.
 
@@ -794,7 +844,7 @@ For more details, refer to the Anthropic [website documentation.](https://docs.a
 
 <br/>
 
-#### Caching initialization
+### Caching initialization
 
 To include the `anthropic-beta: prompt-caching-2024-07-31` header, you must declare :
 
@@ -802,8 +852,10 @@ To include the `anthropic-beta: prompt-caching-2024-07-31` header, you must decl
 >```Pascal
 >uses Anthropic;
 >
->var Anthropic := TAnthropicFactory.CreateInstance(API_KEY, caching);
+>AnthropicCaching := TAnthropicFactory.CreateCachingInstance(API_KEY); 
 >```
+
+Refert to [initialization](#initialization)
 
 Prompt Caching is supported on models like `Claude 3.5 Sonnet`, `Claude 3 Haiku`, and `Claude 3 Opus`. Any part of the request can be flagged for caching using cache_control. 
 
@@ -821,7 +873,7 @@ Each of these components can be designated for caching by applying cache_control
 >Minimum Cacheable Prompt Length:
 >
 >- **1024 tokens** for `Claude 3.5 Sonnet` and `Claude 3 Opus`
->- **2048 tokens** for `Claude 3 Haiku`
+>- **2048 tokens** for `Claude 3.5 Haiku` and  `Claude 3 Haiku` <br/>
 >Prompts shorter than these lengths cannot be cached, even if they include cache_control. Any request to cache a prompt with fewer tokens than the minimum required will be processed without caching. To check if a prompt was cached, refer to the response usage fields.
 >
 >The cache has a 5-minute time-to-live (TTL). Currently, the only supported cache type is "ephemeral," which corresponds to this 5-minute lifespan.
@@ -829,49 +881,66 @@ Each of these components can be designated for caching by applying cache_control
 
 <br/>
 
-#### System Caching
+### System Caching
 
 In the following example, we have a plain text file `text/plain` whose size exceeds the minimum threshold for caching. We will include this file in the ***system section*** of the prompt. This can be beneficial in a ***multi-turn conversation***.
 
 ```Pascal
-// uses Anthropic.API, Anthropic, Anthropic.Chat;
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
 
-  //Create an interface with caching
-  var AnthropicCaching := TAnthropicFactory.CreateInstance(BaererKey, caching);
+  var LongText := 'T:\my_folder\documents\legal.txt';
 
-  var LongText1 := 'T:\my_folder\documents\legal.txt';
-  var LongText2 := 'T:\my_folder\documents\legal-add-on.txt';
-
-  var Chat := AnthropicCaching.Chat.Create(
+  //Asynchronous example
+  AnthropicCaching.Chat.AsynCreate(
      procedure (Params: TChatParams)
      begin
-       Params.Model(Models[ClaudeSonnet3_5]);
+       Params.Model('claude-3-5-sonnet-20241022');
        Params.MaxTokens(1024);
-       Params.System([
-         TSystemPayload.Create('You are an AI assistant tasked with analyzing legal documents.'),
-         TSystemPayload.Create('Here is the full text of a complex legal agreement:', 
-            [LongText1, LongText2], True)
+       Params.System(
+         'You are an AI assistant tasked with analyzing legal documents.' + sLineBreak +
+         'Here is the full text of a complex legal agreement:',
+         LongText
+       );
+       Params.Messages([
+         FromUser('What are the important key points?', True)
        ]);
-       Params.Messages([TChatMessagePayload.User('What are the key terms and conditions in this agreement?')]);
-      // You can also add question and answer caching
-      // Params.Messages([TChatMessagePayload.User('What are the key terms and conditions in this agreement?'), True]); 
+     end,
+     function : TAsynChat
+     begin
+       Result.Sender := TutorialHub;
+       Result.OnStart := Start;
+       Result.OnSuccess := Display;
+       Result.OnError := Display;
      end);
-  try
-    for var Item in Chat.Content do
-      begin
-        Memo1.Text := Memo1.Text + Item.Text + sLineBreak;
-        Memo1.Text := Memo1.Text + '  Cache Creation Input Tokens : ' + Chat.Usage.CacheCreationInputTokens.ToString + sLineBreak;
-        Memo1.Text := Memo1.Text + '  Cache Read Input Tokens : ' + Chat.Usage.CacheReadInputTokens.ToString + sLineBreak;
-        Memo1.Perform(WM_VSCROLL, SB_BOTTOM, 0);
-      end;
-  finally
-    Chat.Free;
-  end;
+
+    //Synchronous example
+//  var Chat := AnthropicCaching.Chat.Create(
+//     procedure (Params: TChatParams)
+//     begin
+//       Params.Model('claude-3-5-sonnet-20241022');
+//       Params.MaxTokens(1024);
+//       Params.System(
+//         'You are an AI assistant tasked with analyzing legal documents.' + sLineBreak +
+//         'Here is the full text of a complex legal agreement:',
+//         LongText
+//       );
+//       Params.Messages([
+//         FromUser('What are the important key points?', True)
+//       ]);
+//     end);
+//  try
+//    Display(TutorialHub, Chat);
+//    DisplayUsage(TutorialHub, Chat);
+//  finally
+//    Chat.Free;
+//  end;
 ```
+
+Not only is the message flagged for caching (`FromUser('What are the important key points?', True)`), but the system parameters are also seamlessly configured, as two elements are defined: a text and a file.
 
 <br/>
 
-#### Tools Caching
+### Tools Caching
 
 The `cache_control` parameter is applied to the final tool (get_time), allowing all previous tool definitions, like get_weather, to be cached as a single block. This is useful for reusing a consistent set of tools across multiple requests without reprocessing them each time.
 
@@ -893,16 +962,16 @@ var WeatherFunc := TWeatherReportFunction.CreateInstance(True);
 When making all these tools available, we will simply write:
 
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Functions.Core, Anthropic.Functions.Example;
-
-  var AnthropicCaching := TAnthropicFactory.CreateInstance(BaererKey, caching);
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX, Anthropic.Functions.Example;
 
   var Chat := AnthropicCaching.Chat.Create(
      procedure (Params: TChatParams)
      begin
-       Params.Model(Models[ClaudeHaiku3]);
+       Params.Model('claude-3-5-sonnet-20241022');
        Params.MaxTokens(1024);
-       Params.Messages([TChatMessagePayload.User('my request')]);
+       Params.Messages([
+            FromUser('my request')
+       ]);
        Params.ToolChoice(auto);
        Params.Tools([tool_1, ... , tool_n, WeatherFunc]);
          // List of tools provided to Claude
@@ -914,26 +983,10 @@ And so the whole list of tools will be cached.
 
 <br/>
 
-#### Images Caching
-
-Image caching for the vision part has been implemented by overloading the `TChatMessagePayload.User` method, which now includes a new parameter `Caching: TSysCachingType`.
+### Images Caching
 
 ```pascal
-TSysCachingType = (none, contentCached, imagesCached, both);
-```
-
-- **none**: Caching is disabled.
-- **contentCached**: Only the question and answer part is cached.
-- **imagesCached**: Only images are cached.
-- **both**: Both images and the question and answer part are cached.
-
-As with tools, if we provide a collection of images to Vision, only the last image in the list will be marked with `cache_control`. This process is handled internally when the JSON request is constructed before being submitted to Claude.
-
-```pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat;  
-
-  //Create an interface with caching
-  var AnthropicCaching := TAnthropicFactory.CreateInstance(BaererKey, caching);
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
 
   var Ref1 := 'T:\my_folder\Images\My_Image1.png';
   var Ref2 := 'T:\my_folder\Images\My_Image2.png';
@@ -943,14 +996,16 @@ As with tools, if we provide a collection of images to Vision, only the last ima
      begin
        Params.Model(Models[ClaudeHaiku3]);
        Params.MaxTokens(1024);
-       Params.Messages([TChatMessagePayload.User('What are the differences between these images?', [Ref1, Ref2], both)]);
+       Params.Messages([
+            FromUser('Describe these images.', [Ref1, Ref2], True)  //True for the caching
+       ]);
      end);
   ...
 ```
 
 <br/>
 
-### Message Batches
+## Message Batches
 
 The `Message Batches` API enables efficient, asynchronous processing of large volumes of message requests. This method is ideal for tasks that don’t require immediate responses, cutting costs by 50% and boosting throughput.
 
@@ -958,7 +1013,7 @@ For more details, refer to the [Anthropic website documentation](https://docs.an
 
 <br/>
 
-#### Message Batches initialization
+### Message Batches initialization
 
 To include the `anthropic-beta: message-batches-2024-09-24` header, you must declare :
 
@@ -966,10 +1021,12 @@ To include the `anthropic-beta: message-batches-2024-09-24` header, you must dec
 >```Pascal
 >uses Anthropic;
 >
->var AnthropicBatches := TAnthropicFactory.CreateInstance(API_KEY, batches);
+>AnthropicBatche := TAnthropicFactory.CreateBatchingInstance(BaererKey);
 >```
 
-The `Message Batches` API supports `Claude 3.5 Sonnet`, `Claude 3 Haiku`, and `Claude 3 Opus`. Any request that can be made through the Messages API can be batched, including : 
+Refert to [initialization](#initialization)
+
+The `Message Batches` API supports `Claude 3.5 Sonnet`, `Claude 3.5 Haiku`, `Claude 3 Haiku`, and `Claude 3 Opus`. Any request that can be made through the Messages API can be batched, including : 
  - **Vision** 
  - **Tool use**
  - **System messages** 
@@ -988,59 +1045,18 @@ Different types of requests can be mixed within a single batch, as each request 
 
 <br/>
 
-#### How it works
+### How it works
 
 The `Message Batches` API creates a batch of requests, processed asynchronously with each request handled independently. You can track the batch status and retrieve results once processing is complete. This is ideal for large-scale tasks like evaluations, content moderation, data analysis, or bulk content generation.
 
 <br/>
 
-#### Batch create
+### Batch create
 
 A Message Batch consists of a collection of requests to generate individual Messages. Each request is structured as follows:
 
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Batches;
-
-  var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
-
-  var Batche := AnthropicBatche.Batche.Create(
-        procedure (Params: TRequestParams)
-        begin
-          Params.Requests([
-            TBatcheParams.Add('my-first-request',
-            procedure (Params: TChatParams)
-            begin
-              Params.Model('claude-3-5-sonnet-20240620');
-              Params.MaxTokens(1024);
-              Params.Messages([
-                TChatMessagePayload.User('Hello, world') ]);
-            end),
-
-            TBatcheParams.Add('my-second-request',
-            procedure (Params: TChatParams)
-            begin
-              Params.Model('claude-3-5-sonnet-20240620');
-              Params.MaxTokens(1024);
-              Params.Messages([
-              TChatMessagePayload.User('Hi again, friend') ]);
-            end)
-          ])
-        end);
-
-  // Display batche informations
-  try
-    Memo1.Text := Memo1.Text + sLineBreak + Batche.Id;
-    Memo1.Text := Memo1.Text + sLineBreak + Batche.ProcessingStatus.ToString;
-  finally
-    Batche.Free;
-  end;
-```
-
-**alternative approach**
- - Pre-creating the requests, followed by sending the generated batches in a separate phase. This approach allows for a focused effort on batch preparation first, optimizing the processing workflow and minimizing the risk of errors.
-
-```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Batches;
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
 
   // Create the content of the batche
   var Request := TRequestParams.Create;
@@ -1048,51 +1064,115 @@ A Message Batch consists of a collection of requests to generate individual Mess
     TBatcheParams.Add('my-first-request',
         procedure (Params: TChatParams)
         begin
-          Params.Model('claude-3-5-sonnet-20240620');
+          Params.Model('claude-3-5-sonnet-20241022');
           Params.MaxTokens(1024);
           Params.Messages([
-            TChatMessagePayload.User('Hello, world') ]);
+            FromUser('Hello, world') ]);
         end),
-      TBatcheParams.Add('my-second-request',
+    TBatcheParams.Add('my-second-request',
         procedure (Params: TChatParams)
         begin
-          Params.Model('claude-3-5-sonnet-20240620');
+          Params.Model('claude-3-5-sonnet-20241022');
           Params.MaxTokens(1024);
           Params.Messages([
-            TChatMessagePayload.User('Hi again, friend') ]);
+            FromUser('Hi again, friend') ]);
         end)
     ]);
-  Memo1.Text := Request.ToFormat();
+  Display(TutorialHub, Request.ToFormat());
 
-  // Send the batche to Claude
-  var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
-  var Batche := AnthropicBatche.Batche.Create(Request.JSON);
-  try
-    Memo1.Text := Memo1.Text + sLineBreak + Batche.Id;
-    Memo1.Text := Memo1.Text + sLineBreak + Batche.ProcessingStatus.ToString;
-  finally
-    Batche.Free;
-    Request.Free;
-  end;
+  TutorialHub.JSONParam := Request;
+
+  //ASynchronous example
+  AnthropicBatche.Batche.AsynCreate(Request.JSON,
+    function : TAsynBatche
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+  // Synchronous example
+//  var Batche := AnthropicBatche.Batche.Create(Request.JSON);
+//  try
+//    Display(TutorialHub, Batche);
+//  finally
+//    Batche.Free;
+//  end;
 ```
 
 <br/>
 
-#### Batch list
+**alternative approach**
+ - In this approach, each item in the batch is defined in a JSONL file (`BatchExample.jsonl`). For instance, using the previous example, the JSONL file could be structured as follows:
+
+```Json
+{ "custom_id": "my-first-request","params":{"model":"claude-3-5-sonnet-20241022","max_tokens": 1024,"messages":[{"role":"user","content":"Hello, world"}]}}
+{"custom_id":"my-second-request",  "params":{"model":"claude-3-5-sonnet-20241022","max_tokens": 1024,"messages":[{"role":"user","content":"Hi again, friend"}]}}
+```
+
+<br/>
+
+Therefore, the batch creation would be carried out using the following code:
+
+```Pascal
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
+
+  TutorialHub.FileName := 'BatchExample.jsonl';
+
+  //Asynchronous example
+  AnthropicBatche.Batche.AsynCreate(TutorialHub.FileName,
+    function : TAsynBatche
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+    //Synchronous example
+//  var Batche := AnthropicBatche.Batche.Create(TutorialHub.FileName);
+//  try
+//    Display(TutorialHub, Batche);
+//  finally
+//    Batche.Free;
+//  end;
+``` 
+
+<br/>
+
+### Batch list
 
 Retrieve all message batches within a workspace, with the most recently created batches appearing first.
 
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Batches;
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
 
-  var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
-  var Batche := AnthropicBatche.Batche.List;
-  try
-    for var Item in Batche.Data do
-      Memo1.Text := Memo1.Text + sLineBreak + Item.Id + '  ' + Item.ProcessingStatus.ToString;
-  finally
-    Batche.Free;
-  end;
+  //Asynchronous example
+  AnthropicBatche.Batche.AsynList(
+    procedure (Params: TListParams)
+    begin
+      Params.Limite(20);
+    end,
+    function : TAsynBatcheList
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+  //Synchronous example
+//  var Batche := AnthropicBatche.Batche.List(
+//    procedure (Params: TListParams)
+//    begin
+//      Params.Limite(20);
+//    end);
+//  try
+//    Display(TutorialHub, Batche);
+//  finally
+//    Batche.Free;
+//  end;
 ```
 
 You can use the "list" API with the following query parameters:
@@ -1103,62 +1183,71 @@ You can use the "list" API with the following query parameters:
 
 - **limit (integer)**: Specifies how many items to return per page. The default is set to 20, with valid values ranging from 1 to 100.
 
-Make sure to use the `TListParams` record as demonstrated in the example that follow :
-
-```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Batches;
-
-  var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
-  var Batche := AnthropicBatche.Batche.List(TListParams.Create.Limite(5).AfterId('msgbatch_XXXX'));
-  try
-    for var Item in Batche.Data do
-      Memo1.Text := Memo1.Text + sLineBreak + Item.Id + '  ' + Item.ProcessingStatus.ToString;
-  finally
-    Batche.Free;
-  end;
-```
-
 <br/>
 
-#### Batch cancel
+### Batch cancel
 
 Batches can be canceled at any point before the processing is fully completed. Once a cancellation is triggered, the batch moves into a canceling state, during which the system may still finish any ongoing, non-interruptible requests before the cancellation is finalized.
 
 The count of canceled requests is listed in the `request_counts`. To identify which specific requests were canceled, review the individual results within the batch. Keep in mind that no requests may actually be canceled if all active requests were non-interruptible.
 
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Batches;
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
 
-  var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
-  var Batche := AnthropicBatche.Batche.Cancel('msgbatch_XXXX');
-  try
-    Memo1.Text := Memo1.Text + sLineBreak + Batche.ProcessingStatus.ToString;
-  finally
-    Batche.Free;
-  end;
+  TutorialHub.BatchId := ID;
+
+  //ASynchonous example
+  AnthropicBatche.Batche.AsynCancel(TutorialHub.BatchId,
+    function : TAsynBatche
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end)
+
+  //Synchronous example
+//  var Batche := AnthropicBatche.Batche.Cancel(TutorialHub.BatchId);
+//  try
+//    Display(TutorialHub, Batche);
+//  finally
+//    Batche.Free;
+//  end;
 ```
 
 <br/>
 
-#### Batch retrieve message
+### Batch retrieve message
 
 This endpoint is repeatable and can be used to check the status of a Message Batch completion. To retrieve the results of a Message Batch, make a request to the `results_url` field provided in the response.
 
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Batches;
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
 
-  var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
-  var Batche := AnthropicBatche.Batche.Retrieve('msgbatch_XXXX');
-  try
-    Memo1.Text := Memo1.Text + sLineBreak + Batche.ResultsUrl;
-  finally
-    Batche.Free;
-  end;
+  TutorialHub.BatchId := ID;
+
+  //Asynchronous example
+  AnthropicBatche.Batche.AsynRetrieve(TutorialHub.BatchId,
+    function : TAsynBatche
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+  //Synchronous example
+//  var Batche := AnthropicBatche.Batche.Retrieve(TutorialHub.BatchId);
+//  try
+//    Display(TutorialHub, Batche);
+//  finally
+//    Batche.Free;
+//  end;
 ```
 
 <br/>
 
-#### Batch retrieve results
+### Batch retrieve results
 
 Streams the results of a Message Batch in a **JSONL** file format.
 
@@ -1169,77 +1258,82 @@ Each line in the file represents a **JSON** object containing the outcome of an 
 >
 
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Batches;
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
 
-  var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
-  var JSONL := AnthropicBatche.Batche.Retrieve('msgbatch_XXXX', 'Result.jsonl');
+  TutorialHub.BatchId := ID;
+  TutorialHub.FileName := 'Result.jsonl';
 
-  with JSONL.GetEnumerator do
-    try
-      while MoveNext do
-        Memo1.Text := Memo1.Text + sLineBreak + Current + sLineBreak;
-    finally
-      Free;
-      JSONL.Free;
-    end;
+  //Asynchronous example
+  AnthropicBatche.Batche.AsynRetrieve(TutorialHub.BatchId, TutorialHub.FileName,
+    function : TAsynStringList
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+  //Synchronous example
+//  var JSONL := AnthropicBatche.Batche.Retrieve(TutorialHub.BatchId, TutorialHub.FileName);
+//  try
+//    Display(TutorialHub, JSONL);
+//  finally
+//    JSONL.Free;
+//  end;  
 ```
 
 In the `Anthropic.Batches.Support.pas` unit, the object interface `IBatcheResults` allows access to the data returned by Claude by providing the name of the **JSONL** file containing the batch data. All the information can be accessed through the Batches array, as demonstrated in the example below.
 
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Batches, Anthropic.Batches.Support;
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
   
-  var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
-  var S := AnthropicBatche.Batche.Retrieve('msgbatch_XXXX', 'Result.jsonl');
+  if not FileExists('Result.jsonl') then
+    begin
+      Display(TutorialHub, 'Result.jsonl not found');
+      Exit;
+    end;
 
   var BatchResults := TBatcheResultsFactory.CreateInstance('Result.jsonl');
-
-  for var Item in BatchResults.Batches do
-    begin
-      Memo1.Text := Memo1.Text + sLineBreak + Item.CustomId + sLineBreak;
-      Memo1.Text := Memo1.Text + sLineBreak + Item.Result.Message.Content[0].Text + sLineBreak;
-    end;
+  Display(TutorialHub, BatchResults);
 ```
 
 <br/>
 
-#### Batch asynchronous
+### Batch delete
 
-There are also asynchronous methods available for managing batches, with each method having its asynchronous counterpart. However, to utilize them, it is necessary to extend the scope of the interface : <br/><br/>
-          - `IAnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches)`  <br/><br/>
-by declaring it in the application's `onCreate` method. Otherwise, a limited scope will lead to failure when using asynchronous methods. 
-
-In the following example, we will use the AsynRetrieve method to fetch a remote batch result.
+Message Batches can only be deleted after they have completed processing. To delete a batch that is still in progress, you must cancel it first.
 
 ```Pascal
-//uses Anthropic.API, Anthropic, Anthropic.Chat, Anthropic.Batches, Anthropic.Batches.Support;
-  
-  // WARNING - Move the following line into the main OnCreate
-  var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+// uses Anthropic, Anthropic.Types, Anthropic.Tutorial.FMX;
 
-  var FileName := 'Result.jsonl';
-  AnthropicBatche.Batche.ASynRetrieve('msgbatch_XXXX', FileName,
-        function : TAsynStringList
-        begin
-          Result.Sender := Memo1;
+  TutorialHub.BatchId := ID;
 
-          Result.OnSuccess :=
-            procedure (Sender: TObject; Params: TStringList)
-            begin
-              var M := Sender as TMemo;
-              var BatchResults := TBatcheResultsFactory.CreateInstance(FileName);
-              for var Item in BatchResults.Batches do
-                begin
-                  M.Text := M.Text + sLineBreak + Item.CustomId + sLineBreak;
-                  M.Text := M.Text + sLineBreak + Item.Result.Message.Content[0].Text + sLineBreak;
-                end;
-            end;
-        end);
+  //Asynchronous example
+  AnthropicBatche.Batche.AsynDelete(TutorialHub.BatchId,
+    function : TAsynBatchDelete
+    begin
+      Result.Sender := TutorialHub;
+      Result.OnStart := Start;
+      Result.OnSuccess := Display;
+      Result.OnError := Display;
+    end);
+
+  //Synchronous example
+//  var Value := AnthropicBatche.Batche.Delete(TutorialHub.BatchId);
+//  try
+//    Display(TutorialHub, Value);
+//  finally
+//    Value.Free;
+//  end;
 ```
+
+>[!CAUTION]
+> A 500 error may occur when attempting to delete messages in bulk, particularly for batches created before the release of the dedicated deletion API. This issue is especially concerning as it could result in a permanent inability to delete these batches, particularly if a significant number of them were generated prior to the availability of the deletion API.
+>
 
 <br/>
 
-#### Console
+### Console
 
 > [!NOTE]
 >You can access all batches through the [Anthropic console](https://console.anthropic.com/settings/workspaces/default/batches). A complete history is maintained, allowing you to view and download the computed results.
@@ -1247,11 +1341,11 @@ In the following example, we will use the AsynRetrieve method to fetch a remote 
 
 <br/>
 
-## Contributing
+# Contributing
 
 Pull requests are welcome. If you're planning to make a major change, please open an issue first to discuss your proposed changes.
 
-## License
+# License
 
 This project is licensed under the [MIT](https://choosealicense.com/licenses/mit/) License.
 

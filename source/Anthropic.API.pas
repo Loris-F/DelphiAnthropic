@@ -91,23 +91,6 @@ type
   /// </summary>
   AnthropicExceptionOverloadedError = class(AnthropicException);
 
-  /// <summary>
-  /// Options available to define the value added to the HTTP header.
-  /// </summary>
-  THeaderOption = (
-    /// <summary>
-    /// No value is added to the HTTP header
-    /// </summary>
-    none,
-    /// <summary>
-    /// Add the value "anthropic-beta: prompt-caching-2024-07-31" to the HTTP header
-    /// </summary>
-    caching,
-    /// <summary>
-    /// Add the value "anthropic-beta: message-batches-2024-09-24" to the HTTP header
-    /// </summary>
-    batches);
-
   TAnthropicAPI = class
   public
     const
@@ -118,14 +101,18 @@ type
     FBaseUrl: string;
     FOrganization: string;
     FCustomHeaders: TNetHeaders;
-    FHeaderOption: THeaderOption;
+    FHeaderOption: Integer;
     procedure SetToken(const Value: string);
     procedure SetBaseUrl(const Value: string);
     procedure SetOrganization(const Value: string);
     procedure RaiseError(Code: Int64; Error: TErrorCore);
     procedure ParseError(const Code: Int64; const ResponseText: string);
     procedure SetCustomHeaders(const Value: TNetHeaders);
-    function ObjectToStringFix(const Value: string): string;
+
+  private
+    function JSONValueAsString(const Value: string): string; overload;
+    function JSONValueAsString(const Value: string; const Field: string): string; overload;
+    function JSONValueAsString(const Value: string; const Field: TArray<string>): string; overload;
 
   protected
     function GetHeaders: TNetHeaders;
@@ -140,6 +127,7 @@ type
 
   public
     function Get<TResult: class, constructor>(const Path: string): TResult; overload;
+    function Get<TResult: class, constructor; TParams: TUrlParam>(const Path: string; ParamProc: TProc<TParams>): TResult; overload;
     function Get(const Path: string): string; overload;
     procedure GetFile(const Path: string; Response: TStream); overload;
     function Delete<TResult: class, constructor>(const Path: string): TResult; overload;
@@ -150,8 +138,8 @@ type
     function PostForm<TResult: class, constructor; TParams: TMultipartFormData, constructor>(const Path: string; ParamProc: TProc<TParams>): TResult; overload;
 
   public
-    constructor Create(const Option: THeaderOption = none); overload;
-    constructor Create(const AToken: string; const Option: THeaderOption = none); overload;
+    constructor Create(const Option: Integer = 0); overload;
+    constructor Create(const AToken: string; const Option: Integer = 0); overload;
     destructor Destroy; override;
     property Token: string read FToken write SetToken;
     property BaseUrl: string read FBaseUrl write SetBaseUrl;
@@ -174,7 +162,12 @@ implementation
 uses
   REST.Json;
 
-constructor TAnthropicAPI.Create(const Option: THeaderOption);
+const
+  JSONFieldsToString : TArray<string> = ['"input":{'];
+
+{ TAnthropicAPI }
+
+constructor TAnthropicAPI.Create(const Option: Integer);
 begin
   inherited Create;
   FHTTPClient := THTTPClient.Create;
@@ -183,7 +176,7 @@ begin
   FHeaderOption := Option;
 end;
 
-constructor TAnthropicAPI.Create(const AToken: string; const Option: THeaderOption);
+constructor TAnthropicAPI.Create(const AToken: string; const Option: Integer);
 begin
   Create(Option);
   Token := AToken;
@@ -209,7 +202,7 @@ begin
     Stream.Position := 0;
     Result := FHTTPClient.Post(GetRequestURL(Path), Stream, Response, Headers).StatusCode;
   finally
-    FHTTPClient.OnReceiveData := nil;
+    FHTTPClient.ReceiveDataCallBack := nil;
     Stream.Free;
   end;
 end;
@@ -258,7 +251,7 @@ begin
     if Assigned(ParamProc) then
       ParamProc(Params);
     Code := Post(Path, Params.JSON, Response);
-    Result := ParseResponse<TResult>(Code, ObjectToStringFix(Response.DataString));
+    Result := ParseResponse<TResult>(Code, JSONValueAsString(Response.DataString));
   finally
     Params.Free;
     Response.Free;
@@ -274,7 +267,7 @@ begin
   Response := TStringStream.Create('', TEncoding.UTF8);
   try
     Code := Post(Path, ParamJSON, Response);
-    Result := ParseResponse<TResult>(Code, ObjectToStringFix(Response.DataString));
+    Result := ParseResponse<TResult>(Code, JSONValueAsString(Response.DataString));
   finally
     Response.Free;
   end;
@@ -408,6 +401,25 @@ begin
   end;
 end;
 
+function TAnthropicAPI.Get<TResult, TParams>(const Path: string; ParamProc: TProc<TParams>): TResult;
+var
+  Response: TStringStream;
+  Code: Integer;
+  Params: TParams;
+begin
+  Response := TStringStream.Create('', TEncoding.UTF8);
+  Params := TParams.Create;
+  try
+    if Assigned(ParamProc) then
+      ParamProc(Params);
+    Code := Get(Path + Params.Value, Response);
+    Result := ParseResponse<TResult>(Code, Response.DataString);
+  finally
+    Response.Free;
+    Params.Free;
+  end;
+end;
+
 function TAnthropicAPI.Get<TResult>(const Path: string): TResult;
 var
   Response: TStringStream;
@@ -451,10 +463,10 @@ begin
   Result := Result + [TNetHeader.Create('anthropic-version', '2023-06-01')];
   Result := Result + [TNetHeader.Create('Content-Type', 'application/json')];
   case FHeaderOption of
-    caching:
-      Result := Result + [TNetHeader.Create('anthropic-beta', 'prompt-caching-2024-07-31')];
-    batches:
+    1:
       Result := Result + [TNetHeader.Create('anthropic-beta', 'message-batches-2024-09-24')];
+    2:
+      Result := Result + [TNetHeader.Create('anthropic-beta', 'prompt-caching-2024-07-31')];
   end;
 end;
 
@@ -464,13 +476,24 @@ begin
   Result := Result + Path;
 end;
 
-function TAnthropicAPI.ObjectToStringFix(const Value: string): string;
+function TAnthropicAPI.JSONValueAsString(const Value: string;
+  const Field: TArray<string>): string;
 begin
   Result := Value;
-  var i := Pos('"input":{', Result);
+  if Length(Field) > 0 then
+    begin
+      for var Item in Field do
+        Result := JSONValueAsString(Result, Item);
+    end;
+end;
+
+function TAnthropicAPI.JSONValueAsString(const Value, Field: string): string;
+begin
+  Result := Value;
+  var i := Pos(Field, Result);
   while (i > 0) and (i < Result.Length) do
     begin
-      i := i + 8;
+      i := i + Field.Length - 1;
       Result[i] := '"';
       Inc(i);
       var j := 0;
@@ -489,8 +512,13 @@ begin
             raise Exception.Create('Invalid JSON string');
         end;
       Result[i] := '"';
-      i := Pos('"input":{', Result);
+      i := Pos(Field, Result);
     end;
+end;
+
+function TAnthropicAPI.JSONValueAsString(const Value: string): string;
+begin
+  Result := JSONValueAsString(Value, JSONFieldsToString);
 end;
 
 procedure TAnthropicAPI.CheckAPI;

@@ -12,90 +12,9 @@ interface
 uses
   System.SysUtils, System.Classes, REST.JsonReflect, System.JSON, System.Threading,
   REST.Json.Types, Anthropic.API.Params, Anthropic.API, Anthropic.Async.Support,
-  Anthropic.Async.Params, Anthropic.Chat;
+  Anthropic.Chat, Anthropic.Types;
 
 type
-  /// <summary>
-  /// Processing status of the Message Batch.
-  /// </summary>
-  TProcessingStatusType = (
-    /// <summary>
-    /// Batch of messages pending or being processed
-    /// </summary>
-    in_progress,
-    /// <summary>
-    /// Message batch processing canceled
-    /// </summary>
-    canceling,
-    /// <summary>
-    /// Batch processing is complete
-    /// </summary>
-    ended
-  );
-
-  /// <summary>
-  /// Helper record for the <c>TProcessingStatusType</c> enumeration, providing utility methods for converting
-  /// between <c>TProcessingStatusType</c> values and their string representations.
-  /// </summary>
-  TProcessingStatusTypeHelper = record helper for TProcessingStatusType
-    /// <summary>
-    /// Converts the current <c>TProcessingStatusType</c> value to its corresponding string representation.
-    /// </summary>
-    /// <returns>
-    /// A string representing the current <c>TProcessingStatusType</c> value.
-    /// </returns>
-    function ToString: string;
-    /// <summary>
-    /// Converts a string representation of a <c>TProcessingStatusType</c> into its corresponding enumeration value.
-    /// </summary>
-    /// <param name="Value">
-    /// The string representing a <c>TTProcessingStatusType</c>.
-    /// </param>
-    /// <returns>
-    /// The <c>TProcessingStatusType</c> enumeration value that corresponds to the provided string.
-    /// </returns>
-    class function Create(const Value: string): TProcessingStatusType; static;
-  end;
-
-  /// <summary>
-  /// Interceptor class for converting <c>TTProcessingStatusType</c> values to and from their string representations in JSON serialization and deserialization.
-  /// </summary>
-  /// <remarks>
-  /// This class is used to facilitate the conversion between the <c>TTProcessingStatusType</c> enum and its string equivalents during JSON processing.
-  /// It extends the <c>TJSONInterceptorStringToString</c> class to override the necessary methods for custom conversion logic.
-  /// </remarks>
-  TProcessingStatusInterceptor = class(TJSONInterceptorStringToString)
-    /// <summary>
-    /// Converts the <c>TJSONInterceptorStringToString</c> value of the specified field to a string during JSON serialization.
-    /// </summary>
-    /// <param name="Data">
-    /// The object containing the field to be converted.
-    /// </param>
-    /// <param name="Field">
-    /// The field name representing the <c>TJSONInterceptorStringToString</c> value.
-    /// </param>
-    /// <returns>
-    /// The string representation of the <c>TJSONInterceptorStringToString</c> value.
-    /// </returns>
-    function StringConverter(Data: TObject; Field: string): string; override;
-    /// <summary>
-    /// Converts a string back to a <c>TJSONInterceptorStringToString</c> value for the specified field during JSON deserialization.
-    /// </summary>
-    /// <param name="Data">
-    /// The object containing the field to be set.
-    /// </param>
-    /// <param name="Field">
-    /// The field name where the <c>TJSONInterceptorStringToString</c> value will be set.
-    /// </param>
-    /// <param name="Arg">
-    /// The string representation of the <c>TJSONInterceptorStringToString</c> to be converted back.
-    /// </param>
-    /// <remarks>
-    /// This method converts the string argument back to the corresponding <c>TJSONInterceptorStringToString</c> value and assigns it to the specified field in the object.
-    /// </remarks>
-    procedure StringReverter(Data: TObject; Field: string; Arg: string); override;
-  end;
-
   /// <summary>
   /// The <c>TBatcheParams</c> class is used to manage and define parameters for a batch of messages.
   /// It provides methods to customize the batch with specific identifiers and additional parameters.
@@ -151,7 +70,17 @@ type
     /// <returns>
     /// The updated <c>TRequestParams</c> instance containing the specified batch requests.
     /// </returns>
-    function Requests(Value: TArray<TBatcheParams>): TRequestParams;
+    function Requests(Value: TArray<TBatcheParams>): TRequestParams; overload;
+    /// <summary>
+    /// Specifies JSONL file to be included in the request operation.
+    /// </summary>
+    /// <param name="FilePath">
+    /// The JSONL filename.
+    /// </param>
+    /// <returns>
+    /// The updated <c>TRequestParams</c> instance containing the specified batch requests.
+    /// </returns>
+    function Requests(FilePath: string): TRequestParams; overload;
   end;
 
   /// <summary>
@@ -165,7 +94,7 @@ type
   TRequestCounts = class
   private
     FProcessing: Int64;
-    Fsucceeded: Int64;
+    FSucceeded: Int64;
     FErrored: Int64;
     FCanceled: Int64;
     FExpired: Int64;
@@ -180,7 +109,7 @@ type
     /// This is zero until processing of the entire Message Batch has ended.
     /// </para>
     /// </summary>
-    property succeeded: Int64 read Fsucceeded write Fsucceeded;
+    property Succeeded: Int64 read FSucceeded write FSucceeded;
     /// <summary>
     /// Number of requests in the Message Batch that encountered an error.
     /// <para>
@@ -339,6 +268,38 @@ type
   end;
 
   /// <summary>
+  /// The <c>TBatchDelete</c> class represents a batch deletion operation.
+  /// It provides information about the identifier and type of the batch being deleted.
+  /// </summary>
+  /// <remarks>
+  /// This class is used to manage the deletion of batches, enabling the application
+  /// to track which batch is being removed from the system. It encapsulates the batch
+  /// identifier and type information necessary for deletion requests.
+  /// </remarks>
+  TBatchDelete = class
+  private
+    FId: string;
+    FType: string;
+  public
+    /// <summary>
+    /// Gets or sets the unique identifier of the batch to be deleted.
+    /// </summary>
+    /// <remarks>
+    /// This property specifies the unique batch ID that is used to identify
+    /// the batch to be removed from the system.
+    /// </remarks>
+    property Id: string read FId write FId;
+    /// <summary>
+    /// Gets or sets the type of the batch being deleted.
+    /// </summary>
+    /// <remarks>
+    /// For most cases, this will be set to "message_batch" to indicate
+    /// that the batch being deleted is of type message batch.
+    /// </remarks>
+    property &Type: string read FType write FType;
+  end;
+
+  /// <summary>
   /// The <c>TListParams</c> class is used to define parameters for retrieving lists of batches.
   /// It allows for pagination by setting limits, specifying batch IDs to start after, or ending before.
   /// </summary>
@@ -350,11 +311,7 @@ type
   /// in a single query. Ensure that only one of these parameters is set at a time to avoid conflicts.
   /// </para>
   /// </remarks>
-  TListParams = record
-  private
-    FLimite: Integer;
-    FAfterId: string;
-    FBeforeId: string;
+  TListParams = class(TUrlParam)
   public
     /// <summary>
     /// Sets the limit for the number of batches to be retrieved.
@@ -392,21 +349,6 @@ type
     /// The current instance of <c>TListParams</c> with the specified <c>before_id</c> value.
     /// </returns>
     function BeforeId(const Value: string): TListParams;
-    /// <summary>
-    /// Converts the current instance of <c>TListParams</c> to its string representation
-    /// for use in building request URLs.
-    /// </summary>
-    /// <returns>
-    /// A string representing the parameters formatted as query parameters for a URL.
-    /// </returns>
-    function ToString: string;
-    /// <summary>
-    /// Creates a new instance of the <c>TListParams</c> structure with default values.
-    /// </summary>
-    /// <returns>
-    /// A new instance of <c>TListParams</c> with default settings.
-    /// </returns>
-    class function Create: TListParams; static;
   end;
 
   /// <summary>
@@ -440,6 +382,16 @@ type
   TAsynStringList = TAsynCallBack<TStringList>;
 
   /// <summary>
+  /// The <c>TAsynBatchDelete</c> class is a callback handler for asynchronous operations that return a <c>TStringList</c> result.
+  /// It is used to process string list data asynchronously, such as retrieving batch results from the API.
+  /// </summary>
+  /// <remarks>
+  /// This class allows for non-blocking operations where a <c>TBatchDelete</c> is returned, enabling efficient handling of large datasets or long-running tasks.
+  /// The callback mechanism helps in managing success, error handling, and overall execution flow.
+  /// </remarks>
+  TAsynBatchDelete = TAsynCallBack<TBatchDelete>;
+
+  /// <summary>
   /// The <c>TBatcheRoute</c> class provides methods to interact with and manage message batches via the API.
   /// It allows for creating, retrieving, canceling, and listing batches asynchronously and synchronously.
   /// </summary>
@@ -460,8 +412,78 @@ type
     /// </param>
     /// <remarks>
     /// This method initiates an asynchronous batch creation request based on the provided parameters. The result or any errors will be handled by the specified callbacks.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// AnthropicBatche.Batche.AsynCreate(
+    ///   procedure (Params: TRequestParams)
+    ///   begin
+    ///     // Define parameters
+    ///   end,
+    ///
+    ///   function : TAsynBatche
+    ///   begin
+    ///      Result.Sender := my_display_component;
+    ///
+    ///      Result.OnStart :=
+    ///        procedure (Sender: TObject);
+    ///        begin
+    ///          // Handle the start
+    ///        end;
+    ///
+    ///      Result.OnSuccess :=
+    ///        procedure (Sender: TObject; Value: TBatche)
+    ///        begin
+    ///          // Handle the value
+    ///        end;
+    ///
+    ///      Result.OnError :=
+    ///        procedure (Sender: TObject; Error: string)
+    ///        begin
+    ///          // Handle the error message
+    ///        end;
+    ///   end);
+    /// </code>
     /// </remarks>
     procedure AsynCreate(ParamProc: TProc<TRequestParams>; CallBacks: TFunc<TAsynBatche>); overload;
+    /// <summary>
+    /// Creates a batch request asynchronously using a <c>TJSONObject</c>.
+    /// </summary>
+    /// <param name="FilePath"> The JSON file containing the parameters for the batch request.</param>
+    /// <param name="CallBacks">
+    /// A function that returns a <c>TAsynBatche</c> record for handling asynchronous events, such as on success or on error.
+    /// </param>
+    /// <remarks>
+    /// This method allows for creating a batch request asynchronously using a <c>TJSONObject</c> to specify the parameters.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// AnthropicBatche.Batche.AsynCreate(FilePath,
+    ///   function : TAsynBatche
+    ///   begin
+    ///      Result.Sender := my_display_component;
+    ///
+    ///      Result.OnStart :=
+    ///        procedure (Sender: TObject);
+    ///        begin
+    ///          // Handle the start
+    ///        end;
+    ///
+    ///      Result.OnSuccess :=
+    ///        procedure (Sender: TObject; Value: TBatche)
+    ///        begin
+    ///          // Handle the value
+    ///        end;
+    ///
+    ///      Result.OnError :=
+    ///        procedure (Sender: TObject; Error: string)
+    ///        begin
+    ///          // Handle the error message
+    ///        end;
+    ///   end);
+    /// </code>
+    /// </remarks>
+    procedure AsynCreate(const FilePath: string; CallBacks: TFunc<TAsynBatche>); overload;
     /// <summary>
     /// Creates a batch request asynchronously using a <c>TJSONObject</c>.
     /// </summary>
@@ -471,6 +493,33 @@ type
     /// </param>
     /// <remarks>
     /// This method allows for creating a batch request asynchronously using a <c>TJSONObject</c> to specify the parameters.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// AnthropicBatche.Batche.AsynCreate(Value,
+    ///   function : TAsynBatche
+    ///   begin
+    ///      Result.Sender := my_display_component;
+    ///
+    ///      Result.OnStart :=
+    ///        procedure (Sender: TObject);
+    ///        begin
+    ///          // Handle the start
+    ///        end;
+    ///
+    ///      Result.OnSuccess :=
+    ///        procedure (Sender: TObject; Value: TBatche)
+    ///        begin
+    ///          // Handle the value
+    ///        end;
+    ///
+    ///      Result.OnError :=
+    ///        procedure (Sender: TObject; Error: string)
+    ///        begin
+    ///          // Handle the error message
+    ///        end;
+    ///   end);
+    /// </code>
     /// </remarks>
     procedure AsynCreate(Value: TJSONObject; CallBacks: TFunc<TAsynBatche>); overload;
     /// <summary>
@@ -482,6 +531,33 @@ type
     /// </param>
     /// <remarks>
     /// This method retrieves the result of a batch process asynchronously using its unique ID. Callbacks handle the process results or errors.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// AnthropicBatche.Batche.ASynRetrieve(Id,
+    ///   function : TAsynBatche
+    ///   begin
+    ///      Result.Sender := my_display_component;
+    ///
+    ///      Result.OnStart :=
+    ///        procedure (Sender: TObject);
+    ///        begin
+    ///          // Handle the start
+    ///        end;
+    ///
+    ///      Result.OnSuccess :=
+    ///        procedure (Sender: TObject; Value: TBatche)
+    ///        begin
+    ///          // Handle the value
+    ///        end;
+    ///
+    ///      Result.OnError :=
+    ///        procedure (Sender: TObject; Error: string)
+    ///        begin
+    ///          // Handle the error message
+    ///        end;
+    ///   end);
+    /// </code>
     /// </remarks>
     procedure AsynRetrieve(const Id: string; CallBacks: TFunc<TAsynBatche>); overload;
     /// <summary>
@@ -494,6 +570,33 @@ type
     /// </param>
     /// <remarks>
     /// This method retrieves the result of a batch process asynchronously by its ID and saves the result to a file. Callbacks manage the process events.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// AnthropicBatche.Batche.ASynRetrieve(Id, FileName,
+    ///   function : TAsynStringList
+    ///   begin
+    ///      Result.Sender := my_display_component;
+    ///
+    ///      Result.OnStart :=
+    ///        procedure (Sender: TObject);
+    ///        begin
+    ///          // Handle the start
+    ///        end;
+    ///
+    ///      Result.OnSuccess :=
+    ///        procedure (Sender: TObject; Value: TStringList)
+    ///        begin
+    ///          // Handle the value
+    ///        end;
+    ///
+    ///      Result.OnError :=
+    ///        procedure (Sender: TObject; Error: string)
+    ///        begin
+    ///          // Handle the error message
+    ///        end;
+    ///   end);
+    /// </code>
     /// </remarks>
     procedure ASynRetrieve(const Id: string; FileName: string; CallBacks: TFunc<TAsynStringList>); overload;
     /// <summary>
@@ -504,21 +607,80 @@ type
     /// </param>
     /// <remarks>
     /// This method fetches a list of all available batches asynchronously. Callbacks handle events such as receiving data or errors during the listing process.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// AnthropicBatche.Batche.AsynList(
+    ///   function : TAsynBatcheList
+    ///   begin
+    ///      Result.Sender := my_display_component;
+    ///
+    ///      Result.OnStart :=
+    ///        procedure (Sender: TObject);
+    ///        begin
+    ///          // Handle the start
+    ///        end;
+    ///
+    ///      Result.OnSuccess :=
+    ///        procedure (Sender: TObject; Value: TBatcheList)
+    ///        begin
+    ///          // Handle the value
+    ///        end;
+    ///
+    ///      Result.OnError :=
+    ///        procedure (Sender: TObject; Error: string)
+    ///        begin
+    ///          // Handle the error message
+    ///        end;
+    ///   end);
+    /// </code>
     /// </remarks>
     procedure AsynList(CallBacks: TFunc<TAsynBatcheList>); overload;
     /// <summary>
     /// Lists batches asynchronously using specific parameters.
     /// </summary>
     /// <param name="Params">
-    /// A <c>TListParams</c> object containing filtering and paging options for batch listing.
+    /// A <c>TListParams1</c> object containing filtering and paging options for batch listing.
     /// </param>
     /// <param name="CallBacks">
     /// A function that returns a <c>TAsynBatcheList</c> record for handling asynchronous batch listing, including success and error events.
     /// </param>
     /// <remarks>
     /// This method allows for retrieving a list of batches asynchronously, with the ability to apply specific filters and paging parameters.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// AnthropicBatche.Batche.AsynList(
+    ///   procedure (Params: TListParams)
+    ///   begin
+    ///     // Define parameters
+    ///   end,
+    ///
+    ///   function : TAsynBatcheList
+    ///   begin
+    ///      Result.Sender := my_display_component;
+    ///
+    ///      Result.OnStart :=
+    ///        procedure (Sender: TObject);
+    ///        begin
+    ///          // Handle the start
+    ///        end;
+    ///
+    ///      Result.OnSuccess :=
+    ///        procedure (Sender: TObject; Value: TBatcheList)
+    ///        begin
+    ///          // Handle the value
+    ///        end;
+    ///
+    ///      Result.OnError :=
+    ///        procedure (Sender: TObject; Error: string)
+    ///        begin
+    ///          // Handle the error message
+    ///        end;
+    ///   end);
+    /// </code>
     /// </remarks>
-    procedure AsynList(const Params: TListParams; CallBacks: TFunc<TAsynBatcheList>); overload;
+    procedure AsynList(ParamProc: TProc<TListParams>; CallBacks: TFunc<TAsynBatcheList>); overload;
     /// <summary>
     /// Cancels a batch operation asynchronously by its ID.
     /// </summary>
@@ -528,8 +690,73 @@ type
     /// </param>
     /// <remarks>
     /// This method cancels a batch process asynchronously using its unique ID. The result or any error is managed by the callbacks provided.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// AnthropicBatche.Batche.AsynCancel(Id,
+    ///   function : TAsynBatche
+    ///   begin
+    ///      Result.Sender := my_display_component;
+    ///
+    ///      Result.OnStart :=
+    ///        procedure (Sender: TObject);
+    ///        begin
+    ///          // Handle the start
+    ///        end;
+    ///
+    ///      Result.OnSuccess :=
+    ///        procedure (Sender: TObject; Value: TBatche)
+    ///        begin
+    ///          // Handle the value
+    ///        end;
+    ///
+    ///      Result.OnError :=
+    ///        procedure (Sender: TObject; Error: string)
+    ///        begin
+    ///          // Handle the error message
+    ///        end;
+    ///   end);
+    /// </code>
     /// </remarks>
     procedure AsynCancel(const Id: string; CallBacks: TFunc<TAsynBatche>);
+    /// <summary>
+    /// Delete a batch operation asynchronously by its ID.
+    /// </summary>
+    /// <param name="Id">The unique identifier of the batch to be deleted.</param>
+    /// <param name="CallBacks">
+    /// A function that returns a <c>TAsynBatchDelete</c> record to handle success or error during the asynchronous cancellation.
+    /// </param>
+    /// <remarks>
+    /// This method delete a batch process asynchronously using its unique ID. The result or any error is managed by the callbacks provided.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// AnthropicBatche.Batche.AsynDelete(Id,
+    ///   function : TAsynBatchDelete
+    ///   begin
+    ///      Result.Sender := my_display_component;
+    ///
+    ///      Result.OnStart :=
+    ///        procedure (Sender: TObject);
+    ///        begin
+    ///          // Handle the start
+    ///        end;
+    ///
+    ///      Result.OnSuccess :=
+    ///        procedure (Sender: TObject; Value: TBatchDelete)
+    ///        begin
+    ///          // Handle the value
+    ///        end;
+    ///
+    ///      Result.OnError :=
+    ///        procedure (Sender: TObject; Error: string)
+    ///        begin
+    ///          // Handle the error message
+    ///        end;
+    ///   end);
+    /// </code>
+    /// </remarks>
+    procedure AsynDelete(const Id: string; CallBacks: TFunc<TAsynBatchDelete>);
     /// <summary>
     /// Creates a batch request synchronously.
     /// </summary>
@@ -541,8 +768,43 @@ type
     /// </returns>
     /// <remarks>
     /// This method sends a batch creation request synchronously and returns the result as a <c>TBatche</c> object.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// var Value := AnthropicBatche.Batche.Create(
+    ///   procedure (Params: TRequestParams)
+    ///   begin
+    ///     // Define parameters
+    ///   end);
+    /// try
+    ///   // Handle the Value
+    /// finally
+    ///   Value.Free;
+    /// end;
+    /// </code>
     /// </remarks>
     function Create(ParamProc: TProc<TRequestParams>): TBatche; overload;
+    /// <summary>
+    /// Creates a batch request synchronously using a <c>TJSONObject</c>.
+    /// </summary>
+    /// <param name="FilePath"> The JSONL file name containing the parameters for the batch request.</param>
+    /// <returns>
+    /// A <c>TBatche</c> object containing the result of the created batch request.
+    /// </returns>
+    /// <remarks>
+    /// This method sends a batch creation request synchronously using a <c>TJSONObject</c> to specify parameters and returns the result.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// var Value := AnthropicBatche.Batche.Create(FilePath);
+    /// try
+    ///   // Handle the Value
+    /// finally
+    ///   Value.Free;
+    /// end;
+    /// </code>
+    /// </remarks>
+    function Create(const FilePath: string): TBatche; overload;
     /// <summary>
     /// Creates a batch request synchronously using a <c>TJSONObject</c>.
     /// </summary>
@@ -552,6 +814,16 @@ type
     /// </returns>
     /// <remarks>
     /// This method sends a batch creation request synchronously using a <c>TJSONObject</c> to specify parameters and returns the result.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// var Value := AnthropicBatche.Batche.Create(Value);
+    /// try
+    ///   // Handle the Value
+    /// finally
+    ///   Value.Free;
+    /// end;
+    /// </code>
     /// </remarks>
     function Create(Value: TJSONObject): TBatche; overload;
     /// <summary>
@@ -563,6 +835,16 @@ type
     /// </returns>
     /// <remarks>
     /// This method retrieves a batch result synchronously using its unique ID.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// var Value := AnthropicBatche.Batche.Retrieve(BatchId);
+    /// try
+    ///   // Handle the Value
+    /// finally
+    ///   Value.Free;
+    /// end;
+    /// </code>
     /// </remarks>
     function Retrieve(const Id: string): TBatche; overload;
     /// <summary>
@@ -575,6 +857,20 @@ type
     /// </returns>
     /// <remarks>
     /// This method retrieves a batch result synchronously and saves it to a file.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// var JSONL := AnthropicBatche.Batche.Retrieve(BatchId, 'Result.jsonl');
+    ///
+    ///  with JSONL.GetEnumerator do
+    ///    try
+    ///      while MoveNext do
+    ///        // Handle the "current" data
+    ///    finally
+    ///      Free;
+    ///      JSONL.Free;
+    ///    end;
+    /// </code>
     /// </remarks>
     function Retrieve(const Id: string; FileName: string): TStringList; overload;
     /// <summary>
@@ -585,21 +881,45 @@ type
     /// </returns>
     /// <remarks>
     /// This method retrieves a list of all available batches synchronously.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// var Value := AnthropicBatche.Batche.List;
+    /// try
+    ///   // Handle the Value
+    /// finally
+    ///   Value.Free;
+    /// end;
+    /// </code>
     /// </remarks>
     function List: TBatcheList; overload;
     /// <summary>
     /// Lists batches synchronously using specific parameters.
     /// </summary>
     /// <param name="Params">
-    /// A <c>TListParams</c> object containing filtering and paging options for batch listing.
+    /// A <c>TListParams1</c> object containing filtering and paging options for batch listing.
     /// </param>
     /// <returns>
     /// A <c>TBatcheList</c> object containing the filtered list of batches.
     /// </returns>
     /// <remarks>
     /// This method retrieves a list of batches synchronously, with the option to apply specific filters and paging parameters.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// var Value := AnthropicBatche.Batche.Delete(
+    ///   procedure (Params: TListParams)
+    ///   begin
+    ///     // Define parameters
+    ///   end);
+    /// try
+    ///   // Handle the Value
+    /// finally
+    ///   Value.Free;
+    /// end;
+    /// </code>
     /// </remarks>
-    function List(const Params: TListParams): TBatcheList; overload;
+    function List(ParamProc: TProc<TListParams>): TBatcheList; overload;
     /// <summary>
     /// Cancels a batch operation synchronously by its ID.
     /// </summary>
@@ -609,8 +929,39 @@ type
     /// </returns>
     /// <remarks>
     /// This method cancels a batch process synchronously by its unique ID.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// var Value := AnthropicBatche.Batche.Cancel(Id);
+    /// try
+    ///   // Handle the Value
+    /// finally
+    ///   Value.Free;
+    /// end;
+    /// </code>
     /// </remarks>
     function Cancel(const Id: string): TBatche;
+    /// <summary>
+    /// Delete a batch operation synchronously by its ID.
+    /// </summary>
+    /// <param name="Id">The unique identifier of the batch to be deleted.</param>
+    /// <returns>
+    /// A <c>TBatche</c> object containing the result of the deletion request.
+    /// </returns>
+    /// <remarks>
+    /// This method deletes a batch process synchronously by its unique ID.
+    /// <code>
+    /// //WARNING - Move the following line into the main OnCreate
+    /// var AnthropicBatche := TAnthropicFactory.CreateInstance(BaererKey, batches);
+    /// var Value := AnthropicBatche.Batche.Delete(Id);
+    /// try
+    ///   // Handle the Value
+    /// finally
+    ///   Value.Free;
+    /// end;
+    /// </code>
+    /// </remarks>
+    function Delete(const Id: string): TBatchDelete;
   end;
 
 implementation
@@ -636,8 +987,12 @@ begin
   var Data := TChatParams.Create;
   try
     if Assigned(ParamProc) then
-      ParamProc(Data);
-    Result := TBatcheParams(Add('params', Data as TJSONParam));
+      begin
+        ParamProc(Data);
+        Result := TBatcheParams(Add('params', Data as TJSONParam));
+      end
+    else
+      Result := Self;
   finally
     Data.Free;
   end;
@@ -648,51 +1003,14 @@ end;
 function TRequestParams.Requests(Value: TArray<TBatcheParams>): TRequestParams;
 begin
   var JSONArray := TJSONArray.Create;
-  for var Batche in Value do
-    if Assigned(Batche) then
-      begin
-        var JSON := TJSONObject.ParseJSONValue(Batche.ToJsonString(False)) as TJSONObject;
-        JSONArray.Add(JSON);
-        Batche.Free;
-      end;
+  for var Item in Value do
+    JSONArray.Add(Item.Detach);
   Result := TRequestParams(Add('requests', JSONArray));
 end;
 
-{ TProcessingStatusTypeHelper }
-
-class function TProcessingStatusTypeHelper.Create(
-  const Value: string): TProcessingStatusType;
+function TRequestParams.Requests(FilePath: string): TRequestParams;
 begin
-  var index := IndexStr(AnsiLowerCase(Value), ['in_progress', 'canceling', 'ended']);
-  if index = -1 then
-    raise Exception.CreateFmt('TProcessingStatusType(%s): Type conversion failed', [Value]);
-  Result := TProcessingStatusType(index);
-end;
-
-function TProcessingStatusTypeHelper.ToString: string;
-begin
-  case Self of
-    in_progress:
-      Exit('in_progress');
-    canceling:
-      Exit('canceling');
-    ended:
-      Exit('ended');
-  end;
-end;
-
-{ TProcessingStatusInterceptor }
-
-function TProcessingStatusInterceptor.StringConverter(Data: TObject;
-  Field: string): string;
-begin
-  Result := RTTI.GetType(Data.ClassType).GetField(Field).GetValue(Data).AsType<TProcessingStatusType>.ToString;
-end;
-
-procedure TProcessingStatusInterceptor.StringReverter(Data: TObject; Field,
-  Arg: string);
-begin
-  RTTI.GetType(Data.ClassType).GetField(Field).SetValue(Data, TValue.From(TProcessingStatusType.Create(Arg)));
+  Result := TRequestParams(AddJSONL('requests', FilePath));
 end;
 
 { TBatcheRoute }
@@ -754,7 +1072,45 @@ begin
   end;
 end;
 
-procedure TBatcheRoute.AsynList(const Params: TListParams;
+procedure TBatcheRoute.AsynCreate(const FilePath: string;
+  CallBacks: TFunc<TAsynBatche>);
+begin
+  with TAsynCallBackExec<TAsynBatche, TBatche>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TBatche
+      begin
+        Result := Self.Create(FilePath);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TBatcheRoute.AsynDelete(const Id: string;
+  CallBacks: TFunc<TAsynBatchDelete>);
+begin
+  with TAsynCallBackExec<TAsynBatchDelete, TBatchDelete>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TBatchDelete
+      begin
+        Result := Self.Delete(Id);
+      end);
+  finally
+    Free;
+  end;
+end;
+
+procedure TBatcheRoute.AsynList(ParamProc: TProc<TListParams>;
   CallBacks: TFunc<TAsynBatcheList>);
 begin
   with TAsynCallBackExec<TAsynBatcheList, TBatcheList>.Create(CallBacks) do
@@ -766,7 +1122,7 @@ begin
     Run(
       function: TBatcheList
       begin
-        Result := Self.List(Params);
+        Result := Self.List(ParamProc);
       end);
   finally
     Free;
@@ -834,6 +1190,15 @@ begin
   Result := API.Post<TBatche>(Format('messages/batches/%s/cancel', [Id]));
 end;
 
+function TBatcheRoute.Create(const FilePath: string): TBatche;
+begin
+  Result := Create(
+    procedure (Params: TRequestParams)
+    begin
+      Params.Requests(FilePath);
+    end);
+end;
+
 function TBatcheRoute.Create(ParamProc: TProc<TRequestParams>): TBatche;
 begin
   Result := API.Post<TBatche, TRequestParams>('messages/batches', ParamProc);
@@ -844,14 +1209,19 @@ begin
   Result := API.Post<TBatche>('messages/batches', Value);
 end;
 
+function TBatcheRoute.Delete(const Id: string): TBatchDelete;
+begin
+  Result := API.Delete<TBatchDelete>('messages/batches/' + Id);
+end;
+
 function TBatcheRoute.List: TBatcheList;
 begin
   Result := API.Get<TBatcheList>('messages/batches');
 end;
 
-function TBatcheRoute.List(const Params: TListParams): TBatcheList;
+function TBatcheRoute.List(ParamProc: TProc<TListParams>): TBatcheList;
 begin
-  Result := API.Get<TBatcheList>(Format('messages/batches%s', [Params.ToString]));
+  Result := API.Get<TBatcheList, TListParams>('messages/batches', ParamProc);
 end;
 
 function TBatcheRoute.Retrieve(const Id: string): TBatche;
@@ -869,59 +1239,6 @@ begin
     SaveToFile(FileName, TEncoding.UTF8);
   end;
 end;
-
-{ TListParams }
-
-function TListParams.AfterId(const Value: string): TListParams;
-begin
-  FAfterId := Value;
-  Result := Self;
-end;
-
-function TListParams.BeforeId(const Value: string): TListParams;
-begin
-  FBeforeId := Value;
-  Result := Self;
-end;
-
-class function TListParams.Create: TListParams;
-begin
-  Result.FLimite := 20;
-  Result.FAfterId := '';
-  Result.FBeforeId := '';
-end;
-
-function TListParams.Limite(const Value: Integer): TListParams;
-begin
-  if (Value <= 0) or (Value > 100) then
-    raise Exception.Create('Limit out of bounds [1..100]');
-  FLimite := Value;
-  Result := Self;
-end;
-
-function TListParams.ToString: string;
-var
-  S1, S2, S3: string;
-
-  function Delimiter(const Value: Boolean): string;
-  begin
-    if Value then
-      Result := '?' else
-      Result := '&&';
-  end;
-
-begin
-  if (FLimite <> 20) and (FLimite > 0) and (FLimite < 100) then
-    S1 := Format('?limit=%d', [FLimite]);
-
-  if not FBeforeId.IsEmpty then
-    S2 := Format(Delimiter(S1.IsEmpty) + 'before_id=%s', [FBeforeId]);
-
-  if not FAfterId.IsEmpty then
-    S3 := Format(Delimiter(S1.IsEmpty and S2.IsEmpty) + 'after_id=%s', [FAfterId]);
-
-  Result := Format('%s%s%s', [S1, S2, S3]);
-end; {ToString}
 
 { TBatcheList }
 
@@ -941,4 +1258,22 @@ begin
   inherited;
 end;
 
+{ TListParams }
+
+function TListParams.AfterId(const Value: string): TListParams;
+begin
+  Result := TListParams(Add('after_id', Value));
+end;
+
+function TListParams.BeforeId(const Value: string): TListParams;
+begin
+  Result := TListParams(Add('before_id', Value));
+end;
+
+function TListParams.Limite(const Value: Integer): TListParams;
+begin
+  Result := TListParams(Add('limit', Value));
+end;
+
 end.
+

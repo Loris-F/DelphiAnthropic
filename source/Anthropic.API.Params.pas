@@ -11,9 +11,21 @@ interface
 
 uses
   System.Classes, System.JSON, System.SysUtils, System.Types, System.RTTI,
-  REST.JsonReflect, REST.Json.Interceptors, System.Generics.Collections;
+  REST.JsonReflect, REST.Json.Interceptors, System.Generics.Collections,
+  System.Threading;
 
 type
+  /// <summary>
+  /// Represents a reference to a procedure that takes a single argument of type T and returns no value.
+  /// </summary>
+  /// <param name="T">
+  /// The type of the argument that the referenced procedure will accept.
+  /// </param>
+  /// <remarks>
+  /// This type is useful for defining callbacks or procedures that operate on a variable of type T, allowing for more flexible and reusable code.
+  /// </remarks>
+  TProcRef<T> = reference to procedure(var Arg: T);
+
   TJSONInterceptorStringToString = class(TJSONInterceptor)
     constructor Create; reintroduce;
   protected
@@ -25,6 +37,9 @@ type
     FJSON: TJSONObject;
     procedure SetJSON(const Value: TJSONObject);
     function GetCount: Integer;
+
+  protected
+    function ImportJSONL(const FilePath: string): TArray<string>; virtual;
 
   public
     constructor Create; virtual;
@@ -41,16 +56,33 @@ type
     function Add(const Key: string; Value: TArray<Extended>): TJSONParam; overload; virtual;
     function Add(const Key: string; Value: TArray<TJSONValue>): TJSONParam; overload; virtual;
     function Add(const Key: string; Value: TArray<TJSONParam>): TJSONParam; overload; virtual;
+    function AddJSONL(const Key: string; const FilePath: string): TJSONParam; virtual;
     function GetOrCreateObject(const Name: string): TJSONObject;
     function GetOrCreate<T: TJSONValue, constructor>(const Name: string): T;
     procedure Delete(const Key: string); virtual;
     procedure Clear; virtual;
     property Count: Integer read GetCount;
+    function Detach: TJSONObject;
     property JSON: TJSONObject read FJSON write SetJSON;
     function ToJsonString(FreeObject: Boolean = False): string; virtual;
     function ToFormat(FreeObject: Boolean = False): string;
     function ToStringPairs: TArray<TPair<string, string>>;
     function ToStream: TStringStream;
+  end;
+
+  TUrlParam = class
+  private
+    FValue: string;
+    procedure Check(const Name: string);
+    function GetValue: string;
+  public
+    function Add(const Name, Value: string): TUrlParam; overload;
+    function Add(const Name: string; Value: Integer): TUrlParam; overload;
+    function Add(const Name: string; Value: Boolean): TUrlParam; overload;
+    function Add(const Name: string; Value: Double): TUrlParam; overload;
+    function Add(const Name: string; Value: TArray<string>): TUrlParam; overload;
+    property Value: string read GetValue;
+    constructor Create; virtual;
   end;
 
 const
@@ -166,6 +198,16 @@ begin
   Result := Self;
 end;
 
+function TJSONParam.AddJSONL(const Key, FilePath: string): TJSONParam;
+begin
+  var JSONL := ImportJSONL(FilePath);
+  var JSONArray := TJSONArray.Create;
+  for var Item in JSONL do
+    JSONArray.Add(TJSONObject.ParseJSONValue(Item) as TJSONObject);
+  Add(Key, JSONArray);
+  Result := Self;
+end;
+
 function TJSONParam.Add(const Key: string; Value: TArray<Extended>): TJSONParam;
 var
   JArr: TJSONArray;
@@ -229,6 +271,24 @@ begin
   inherited;
 end;
 
+function TJSONParam.Detach: TJSONObject;
+begin
+  Result := JSON;
+  JSON := nil;
+  var Task: ITask := TTask.Create(
+    procedure()
+    begin
+      Sleep(30);
+      TThread.Queue(nil,
+      procedure
+      begin
+        Self.Free;
+      end);
+    end
+  );
+  Task.Start;
+end;
+
 function TJSONParam.GetCount: Integer;
 begin
   Result := FJSON.Count;
@@ -246,6 +306,35 @@ end;
 function TJSONParam.GetOrCreateObject(const Name: string): TJSONObject;
 begin
   Result := GetOrCreate<TJSONObject>(Name);
+end;
+
+function TJSONParam.ImportJSONL(const FilePath: string): TArray<string>;
+begin
+  if not FileExists(FilePath) or not ExtractFileExt(FilePath).ToLower.StartsWith('.jsonl') then
+    raise Exception.CreateFmt('File %s not found or is not jsonl type.', [FilePath]);
+
+  var StreamReader := TStreamReader.Create(FilePath, TEncoding.UTF8);
+  try
+    try
+      while not StreamReader.EndOfStream do
+        begin
+          var Line := StreamReader.ReadLine;
+          if Line.Trim.IsEmpty then
+            Continue;
+
+          var JSONVlue := TJSONObject.ParseJSONValue(Line);
+          if not Assigned(JSONVlue) then
+            raise Exception.CreateFmt('Error: Malformed JSON data.'#10'%s', [Line]);
+
+          JSONVlue.Free;
+          Result := Result + [Line];
+        end;
+    except
+      raise;
+    end;
+  finally
+    StreamReader.Free;
+  end;
 end;
 
 procedure TJSONParam.SetJSON(const Value: TJSONObject);
@@ -283,6 +372,68 @@ function TJSONParam.ToStringPairs: TArray<TPair<string, string>>;
 begin
   for var Pair in FJSON do
     Result := Result + [TPair<string, string>.Create(Pair.JsonString.Value, Pair.JsonValue.AsType<string>)];
+end;
+
+{ TUrlParam }
+
+function TUrlParam.Add(const Name, Value: string): TUrlParam;
+begin
+  Check(Name);
+  var S := Format('%s=%s', [Name, Value]);
+  if FValue.IsEmpty then
+    FValue := S else
+    FValue := FValue + '&' + S;
+  Result := Self;
+end;
+
+function TUrlParam.Add(const Name: string; Value: Integer): TUrlParam;
+begin
+  Result := Add(Name, Value.ToString);
+end;
+
+function TUrlParam.Add(const Name: string; Value: Boolean): TUrlParam;
+begin
+  Result := Add(Name, BoolToStr(Value, true));
+end;
+
+function TUrlParam.Add(const Name: string; Value: Double): TUrlParam;
+begin
+  Result := Add(Name, Value.ToString);
+end;
+
+procedure TUrlParam.Check(const Name: string);
+begin
+  if FValue.Contains(Name) then
+    begin
+      var Items := FValue.Split(['&']);
+      FValue := EmptyStr;
+      for var Item in Items do
+        begin
+          if not Item.StartsWith(Name) then
+            begin
+              if FValue.IsEmpty then
+                FValue := Item else
+                FValue := FValue + '&' + Item;
+            end;
+        end;
+    end;
+end;
+
+constructor TUrlParam.Create;
+begin
+  FValue := EmptyStr;
+end;
+
+function TUrlParam.GetValue: string;
+begin
+  Result := FValue;
+  if not Result.IsEmpty then
+    Result := '?' + Result;
+end;
+
+function TUrlParam.Add(const Name: string; Value: TArray<string>): TUrlParam;
+begin
+  Result := Add(Name, string.Join(',', Value).Replace(#32, #0));
 end;
 
 end.

@@ -12,206 +12,209 @@ interface
 uses
   System.SysUtils, System.Classes, REST.JsonReflect, System.JSON, System.Threading,
   REST.Json.Types, Anthropic.API.Params, Anthropic.API, Anthropic.Functions.Core,
-  Anthropic.Vision.Params, Anthropic.Async.Support, Anthropic.Async.Params;
+  Anthropic.Async.Support, Anthropic.Async.Params, Anthropic.Types;
 
 type
   /// <summary>
-  /// The different states of the cache control for Vision
-  /// </summary>
-  TSysCachingType = (
-    /// <summary>
-    /// no caching
-    /// </summary>
-    none,
-    /// <summary>
-    /// Caching only for content
-    /// </summary>
-    contentCached,
-    /// <summary>
-    /// Caching only for images
-    /// </summary>
-    imagesCached,
-    /// <summary>
-    /// Caching for images and contents
-    /// </summary>
-    both
-  );
-
-  /// <summary>
-  /// Type of message role
-  /// </summary>
-  TMessageRole = (
-    /// <summary>
-    /// User message
-    /// </summary>
-    user,
-    /// <summary>
-    /// Assistant message
-    /// </summary>
-    assistant);
-
-  /// <summary>
-  /// Helper record for the <c>TMessageRole</c> enumeration, providing utility methods for converting
-  /// between <c>TMessageRole</c> values and their string representations.
-  /// </summary>
-  TMessageRoleHelper = record helper for TMessageRole
-    /// <summary>
-    /// Converts the current <c>TMessageRole</c> value to its corresponding string representation.
-    /// </summary>
-    /// <returns>
-    /// A string representing the current <c>TMessageRole</c> value.
-    /// </returns>
-    function ToString: string;
-    /// <summary>
-    /// Converts a string representation of a <c>TMessageRole</c> into its corresponding enumeration value.
-    /// </summary>
-    /// <param name="Value">
-    /// The string representing a <c>TMessageRole</c>.
-    /// </param>
-    /// <returns>
-    /// The <c>TMessageRole</c> enumeration value that corresponds to the provided string.
-    /// </returns>
-    class function FromString(const Value: string): TMessageRole; static;
-  end;
-
-  /// <summary>
-  /// Represents the different reasons why the processing of a request can terminate.
-  /// </summary>
-  TStopReason = (
-    /// <summary>
-    /// The model reached a natural stopping point
-    /// </summary>
-    end_turn,
-    /// <summary>
-    /// We exceeded the requested max_tokens or the model's maximum
-    /// </summary>
-    max_tokens,
-    /// <summary>
-    /// One of your provided custom stop_sequences was generated
-    /// </summary>
-    stop_sequence,
-    /// <summary>
-    /// The model invoked one or more tools
-    /// </summary>
-    tool_use);
-
-  /// <summary>
-  /// Helper record for the <c>TFinishReason</c> enumeration, providing utility methods for conversion between string representations and <c>TFinishReason</c> values.
-  /// </summary>
-  TStopReasonHelper = record helper for TStopReason
-    /// <summary>
-    /// Converts the current <c>TStopReasonHelper</c> value to its string representation.
-    /// </summary>
-    /// <returns>
-    /// A string representing the current <c>TStopReasonHelper</c> value.
-    /// </returns>
-    function ToString: string;
-    /// <summary>
-    /// Creates a <c>TStopReasonHelper</c> value from its corresponding string representation.
-    /// </summary>
-    /// <param name="Value">
-    /// The string value representing a <c>TStopReasonHelper</c>.
-    /// </param>
-    /// <returns>
-    /// The corresponding <c>TStopReasonHelper</c> enumeration value for the provided string.
-    /// </returns>
-    /// <remarks>
-    /// This method throws an exception if the input string does not match any valid <c>TStopReasonHelper</c> values.
-    /// </remarks>
-    class function Create(const Value: string): TStopReason; static;
-  end;
-
-  /// <summary>
-  /// Interceptor class for converting <c>TStopReason</c> values to and from their string representations in JSON serialization and deserialization.
+  /// Represents an image source in the content payload.
   /// </summary>
   /// <remarks>
-  /// This class is used to facilitate the conversion between the <c>TStopReason</c> enum and its string equivalents during JSON processing.
-  /// It extends the <c>TJSONInterceptorStringToString</c> class to override the necessary methods for custom conversion logic.
+  /// This class is used to construct image-related content in a chat message, including
+  /// its type, media type, and data. The data can be encoded in Base64 format for secure
+  /// transmission or direct use, depending on the context.
   /// </remarks>
-  TStopReasonInterceptor = class(TJSONInterceptorStringToString)
+  TContentImageSource = class(TJSONParam)
   public
     /// <summary>
-    /// Converts the <c>TStopReason</c> value of the specified field to a string during JSON serialization.
+    /// Sets the type of the content.
     /// </summary>
-    /// <param name="Data">
-    /// The object containing the field to be converted.
-    /// </param>
-    /// <param name="Field">
-    /// The field name representing the <c>TStopReason</c> value.
+    /// <param name="Value">
+    /// The type of the content, typically "image".
     /// </param>
     /// <returns>
-    /// The string representation of the <c>TStopReason</c> value.
+    /// The updated <c>TContentImageSource</c> instance.
     /// </returns>
-    function StringConverter(Data: TObject; Field: string): string; override;
-    /// <summary>
-    /// Converts a string back to a <c>TStopReason</c> value for the specified field during JSON deserialization.
-    /// </summary>
-    /// <param name="Data">
-    /// The object containing the field to be set.
-    /// </param>
-    /// <param name="Field">
-    /// The field name where the <c>TStopReason</c> value will be set.
-    /// </param>
-    /// <param name="Arg">
-    /// The string representation of the <c>TStopReason</c> to be converted back.
-    /// </param>
     /// <remarks>
-    /// This method converts the string argument back to the corresponding <c>TStopReason</c> value and assigns it to the specified field in the object.
+    /// This property is used to specify the general type of the content being added.
     /// </remarks>
-    procedure StringReverter(Data: TObject; Field: string; Arg: string); override;
-  end;
-
-  /// <summary>
-  /// Indicator to specify how to use tools.
-  /// </summary>
-  TToolChoiceType = (
+    function &Type(const Value: string): TContentImageSource;
     /// <summary>
-    /// Allows Claude to decide whether to call any provided tools or not. This is the default value.
+    /// Sets the media type of the image content.
     /// </summary>
-    auto,
-    /// <summary>
-    /// Tells Claude that it must use one of the provided tools, but doesn’t force a particular tool.
-    /// </summary>
-    any,
-    /// <summary>
-    ///  Allows us to force Claude to always use a particular tool.
-    /// </summary>
-    tool
-  );
-
-  /// <summary>
-  /// Helper record for the <c>TToolChoiceType</c> enumeration, providing utility methods for converting
-  /// between <c>TToolChoiceType</c> values and their string representations.
-  /// </summary>
-  TToolChoiceTypeHelper = record helper for TToolChoiceType
-    /// <summary>
-    /// Converts the current <c>TToolChoiceType</c> value to its corresponding string representation.
-    /// </summary>
+    /// <param name="Value">
+    /// The MIME type of the image, such as "image/png" or "image/jpeg".
+    /// </param>
     /// <returns>
-    /// A string representing the current <c>TToolChoiceType</c> value.
+    /// The updated <c>TContentImageSource</c> instance.
     /// </returns>
-    function ToString: string;
+    /// <remarks>
+    /// The media type defines the format of the image, enabling proper handling during processing.
+    /// </remarks>
+    function MediaType(const Value: string): TContentImageSource;
+    /// <summary>
+    /// Sets the image data.
+    /// </summary>
+    /// <param name="Value">
+    /// The Base64-encoded string representing the image data.
+    /// </param>
+    /// <returns>
+    /// The updated <c>TContentImageSource</c> instance.
+    /// </returns>
+    /// <remarks>
+    /// The data property holds the image content in a format suitable for embedding in
+    /// JSON-based payloads. Ensure that the input is Base64-encoded if required by the context.
+    /// </remarks>
+    function Data(const Value: string): TContentImageSource;
+    /// <summary>
+    /// Creates a new instance of <c>TContentImageSource</c> with the specified image value.
+    /// </summary>
+    /// <param name="Value">
+    /// The string representing the image data or file.
+    /// </param>
+    /// <param name="Kind">
+    /// Enum: 'image' or 'base64'
+    /// </param>
+    /// <returns>
+    /// A new instance of <c>TContentImageSource</c> with its fields initialized.
+    /// </returns>
+    /// <remarks>
+    /// This method validates the MIME type and initializes the instance with the appropriate type,
+    /// media type, and data. The input can be a file path or a Base64-encoded string.
+    /// </remarks>
+    class function New(const Value: string): TContentImageSource;
   end;
 
   /// <summary>
-  /// The <c>TChatMessagePayload</c> record represents a chat message payload, which includes both the role of the message sender and the content of the message.
-  /// This type is used to distinguish between different participants in the conversation (e.g., user or assistant) and manage the flow of messages accordingly.
+  /// Represents the content of a chat message.
   /// </summary>
   /// <remarks>
-  /// The <c>TChatMessagePayload</c> record is essential for managing conversations in a chat application, allowing the differentiation between user inputs, assistant responses.
-  /// Each message has a role (defining the participant type) and a content field (the actual message being conveyed).
-  /// This record provides several helper methods to create messages with predefined roles for easier message handling.
-  /// <para>
-  /// - It notably manages server-side caching.
-  /// </para>
+  /// This class is used to construct the content of a chat message, which can include
+  /// text or image elements. It allows defining the type of content, the actual text or image
+  /// data, and optional caching control for optimized performance.
   /// </remarks>
-  TChatMessagePayload = record
-  private
-    FRole: TMessageRole;
-    FContent: string;
-    FImages: TArray<TVisionSource>;
-    FCacheControl: Boolean;
-    FVisionCaching: TSysCachingType;
+  TChatMessageContent = class(TJSONParam)
+  public
+    /// <summary>
+    /// Sets the type of the content.
+    /// </summary>
+    /// <param name="Value">
+    /// The type of the content, such as "text", "image" or document.
+    /// </param>
+    /// <returns>
+    /// The updated <c>TChatMessageContent</c> instance.
+    /// </returns>
+    /// <remarks>
+    /// The content type determines how the content will be processed and displayed.
+    /// Supported values include "text" for textual content and "image" for image data.
+    /// </remarks>
+    function &Type(const Value: string): TChatMessageContent;
+    /// <summary>
+    /// Sets the text content of the message.
+    /// </summary>
+    /// <param name="Value">
+    /// The text to be included in the chat message.
+    /// </param>
+    /// <returns>
+    /// The updated <c>TChatMessageContent</c> instance.
+    /// </returns>
+    /// <remarks>
+    /// This method is used to define the main textual content of the message.
+    /// </remarks>
+    function Text(const Value: string): TChatMessageContent;
+    /// <summary>
+    /// Sets the source of the image content.
+    /// </summary>
+    /// <param name="Value">
+    /// The Base64-encoded string or file path of the image.
+    /// </param>
+    /// <param name="Kind">
+    /// Enum: 'image' or 'base64'
+    /// </param>
+    /// <param name="Caching">
+    /// Optional caching type to control the use of cached image data.
+    /// </param>
+    /// <returns>
+    /// The updated <c>TChatMessageContent</c> instance.
+    /// </returns>
+    /// <remarks>
+    /// This method is used to add an image to the message content. The optional caching
+    /// parameter allows specifying how the image data should be handled.
+    /// </remarks>
+    function Source(const Value: string; const Caching: TCachingType = nocaching): TChatMessageContent;
+    /// <summary>
+    /// Sets the caching control for the content.
+    /// </summary>
+    /// <param name="Value">
+    /// The caching type to be applied, such as "nocaching" or "ephemeral".
+    /// </param>
+    /// <returns>
+    /// The updated <c>TChatMessageContent</c> instance.
+    /// </returns>
+    /// <remarks>
+    /// Caching control is used to optimize content retrieval and reduce latency by defining
+    /// how the content is cached on the server.
+    /// </remarks>
+    function CacheControl(const Value: TCachingType): TChatMessageContent;
+    /// <summary>
+    /// Creates a new text content instance with optional caching.
+    /// </summary>
+    /// <param name="Value">
+    /// The text to be included in the message.
+    /// </param>
+    /// <param name="Caching">
+    /// Optional caching type to control the use of cached text data.
+    /// </param>
+    /// <returns>
+    /// A new instance of <c>TChatMessageContent</c> configured as text content.
+    /// </returns>
+    /// <remarks>
+    /// This method simplifies the creation of text content with caching options.
+    /// </remarks>
+    class function AddText(const Value: string; const Caching: TCachingType = nocaching): TChatMessageContent;
+    /// <summary>
+    /// Creates a new image content instance with optional caching.
+    /// </summary>
+    /// <param name="Value">
+    /// The Base64-encoded string or file path of the image.
+    /// </param>
+    /// <param name="Caching">
+    /// Optional caching type to control the use of cached image data.
+    /// </param>
+    /// <returns>
+    /// A new instance of <c>TChatMessageContent</c> configured as image content.
+    /// </returns>
+    /// <remarks>
+    /// This method simplifies the creation of image content with caching options.
+    /// </remarks>
+    class function AddImage(const Value: string; const Caching: TCachingType = nocaching): TChatMessageContent;
+    /// <summary>
+    /// Creates a new PDF content instance with optional caching.
+    /// </summary>
+    /// <param name="Value">
+    /// The Base64-encoded string or file path of the PDF.
+    /// </param>
+    /// <param name="Caching">
+    /// Optional caching type to control the use of cached PDF data.
+    /// </param>
+    /// <returns>
+    /// A new instance of <c>TChatMessageContent</c> configured as PDF content.
+    /// </returns>
+    /// <remarks>
+    /// This method simplifies the creation of PDF content with caching options.
+    /// </remarks>
+    class function AddPDF(const Value: string; const Caching: TCachingType = nocaching): TChatMessageContent;
+  end;
+
+  /// <summary>
+  /// Represents the payload for a chat message in a conversational context.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TChatMessagePayload</c> class provides the structure for defining and managing chat messages.
+  /// It allows specifying the role of the sender (e.g., user, assistant) and the content of the message.
+  /// The class supports multiple formats for message content, including text, images, and documents, and provides
+  /// convenient methods for creating instances with predefined roles and content types.
+  /// </remarks>
+  TChatMessagePayload = class(TJSONParam)
   public
     /// <summary>
     /// Gets or sets the role of the message.
@@ -220,7 +223,7 @@ type
     /// The <c>Role</c> property determines who is sending the message. It can be a "user" (representing the end user), an "assistant" (representing an AI or bot).
     /// This property is essential for contextualizing the content of the message within the chat.
     /// </remarks>
-    property Role: TMessageRole read FRole write FRole;
+    function Role(const Value: TMessageRole): TChatMessagePayload;
     /// <summary>
     /// Gets or sets the content of the message.
     /// </summary>
@@ -228,18 +231,23 @@ type
     /// The <c>Content</c> property contains the actual message text. This is a required field and cannot be empty, as it represents the core information being exchanged
     /// in the chat, whether it's from the user, the assistant.
     /// </remarks>
-    property Content: string read FContent write FContent;
+    function Content(const Value: string): TChatMessagePayload; overload;
     /// <summary>
-    /// Enable/disable the cache contol flag.
+    /// Gets or sets the content of the message.
     /// </summary>
     /// <remarks>
-    /// If enable, it allow continuing a multi-turn conversation.
+    /// The <c>Content</c> property contains the actual message text. This is a required field and cannot be empty, as it represents the core information being exchanged
+    /// in the chat, whether it's from the user, the assistant.
     /// </remarks>
-    property CacheControl: Boolean read FCacheControl write FCacheControl;
+    function Content(const Value: TJSONArray): TChatMessagePayload; overload;
     /// <summary>
-    /// Enable/disable the cache contol flag only for vision (content & images).
+    /// Gets or sets the content of the message.
     /// </summary>
-    property VisionCaching: TSysCachingType read FVisionCaching write FVisionCaching;
+    /// <remarks>
+    /// The <c>Content</c> property contains the actual message text. This is a required field and cannot be empty, as it represents the core information being exchanged
+    /// in the chat, whether it's from the user, the assistant.
+    /// </remarks>
+    function Content(const Value: TChatMessageContent): TChatMessagePayload; overload;
     /// <summary>
     /// Creates a new chat message payload with the role of the assistant.
     /// </summary>
@@ -252,7 +260,7 @@ type
     /// <remarks>
     /// This method is a convenience for creating assistant messages. Use this method when the assistant needs to respond to the user or system.
     /// </remarks>
-    class function Assistant(const Content: string): TChatMessagePayload; static;
+    class function Assistant(const Value: string): TChatMessagePayload;
     /// <summary>
     /// Creates a new chat message payload with the role of the user.
     /// </summary>
@@ -268,30 +276,71 @@ type
     /// <remarks>
     /// This method is used to create messages from the user's perspective, typically representing inputs or queries in the conversation.
     /// </remarks>
-    class function User(const Content: string; CacheControl: Boolean = False): TChatMessagePayload; overload; static;
+    class function User(const Value: string; CacheControl: Boolean = False): TChatMessagePayload; overload;
     /// <summary>
     /// Creates a new chat message payload with the role of the user and includes associated vision sources.
     /// </summary>
     /// <param name="Content">
     /// The content of the message that the user is sending.
     /// </param>
-    /// <param name="FileNames">
-    /// An array of strings representing vision sources.
+    /// <param name="Images">
+    /// An array of strings representing image file sources.
     /// </param>
     /// <returns>
     /// A <c>TChatMessagePayload</c> instance with the role set to "user", the provided content, and the specified vision sources.
     /// </returns>
     /// <remarks>
     /// This method is used to create messages from the user's perspective that include both text content and optional vision sources.
-    /// The vision sources can be onlyr Base64-encoded images, and they are used to enhance the message with visual information.
+    /// The vision sources can be only Base64-encoded images, and they are used to enhance the message with visual information.
     /// </remarks>
-    class function User(const Content: string; FileNames: TArray<string>;
-      Caching: TSysCachingType = none): TChatMessagePayload; overload; static;
+    class function User(const Value: string; const Images: TArray<string>;
+      CacheControl: Boolean = False): TChatMessagePayload; overload;
+    /// <summary>
+    /// Creates a new chat message payload with the role of the user, including PDF documents.
+    /// </summary>
+    /// <param name="Value">
+    /// The text content of the message being sent by the user.
+    /// </param>
+    /// <param name="Documents">
+    /// An array of strings representing the PDF documents to be included in the message.
+    /// Each entry in the array is expected to be a Base64-encoded representation of a PDF file.
+    /// </param>
+    /// <param name="CacheControl">
+    /// A boolean flag indicating whether to enable cache control for the provided content.
+    /// If set to <c>True</c>, the PDF documents and the message text will be cached.
+    /// The default value is <c>False</c>, meaning no caching is applied.
+    /// </param>
+    /// <returns>
+    /// A <c>TChatMessagePayload</c> instance containing the user role, the provided text content,
+    /// and the associated PDF documents in the message payload.
+    /// </returns>
+    /// <remarks>
+    /// This method is particularly useful for scenarios where a user needs to include PDF documents as part of their chat interaction.
+    /// The PDFs are embedded in the message payload and can be accompanied by a textual message for additional context.
+    /// Example:
+    /// <code>
+    /// var Payload := TChatMessagePayload.Pdf('Here are the requested documents:', [Base64PDF1, Base64PDF2]);
+    /// </code>
+    /// This generates a chat message with the specified text and two attached PDF documents.
+    /// </remarks>
+    class function Pdf(const Value: string; const Documents: TArray<string>;
+      CacheControl: Boolean = False): TChatMessagePayload;
   end;
 
   /// <summary>
+  /// Represents the payload for a chat message in a conversational context.
+  /// </summary>
+  /// <remarks>
+  /// The <c>Payload</c> class provides the structure for defining and managing chat messages.
+  /// It allows specifying the role of the sender (e.g., user, assistant) and the content of the message.
+  /// The class supports multiple formats for message content, including text, images, and documents, and provides
+  /// convenient methods for creating instances with predefined roles and content types.
+  /// </remarks>
+  Payload = TChatMessagePayload;
+
+  /// <summary>
   /// The <c>TSystemPayload</c> record represents the system message payload
-  ///This type is used to indicate behavior rules, response format patterns, or general information about the current context.
+  /// This type is used to indicate behavior rules, response format patterns, or general information about the current context.
   /// </summary>
   /// <remarks>
   /// <para>
@@ -307,63 +356,21 @@ type
   /// - In a system prompt there can be only two <c>TSystemPayload</c> records at most. The second <c>TSystemPayload</c> will be automatically marked to use caching.
   /// </para>
   /// </remarks>
-  TSystemPayload = record
-  private
-    FType: string;
-    FText: string;
-    FCacheControl: Boolean;
+  TSystemPayload = class(TJSONParam)
   public
     /// <summary>
     /// Allways "text" in this context
     /// </summary>
-    property &Type: string read FType write FType;
+    function &Type(const Value: string): TSystemPayload;
     /// <summary>
     /// Content of the system prompt
     /// </summary>
-    property Text: string read FText write FText;
+    function Text(const Value: string): TSystemPayload;
     /// <summary>
     /// Enable/disable the cache contol flag.
     /// </summary>
-    property CacheControl: Boolean read FCacheControl write FCacheControl;
-    /// <summary>
-    /// Create a new <c>TSystemPayload</c> record
-    /// </summary>
-    /// <param name="Text">
-    /// The text of the system prompt.
-    /// </param>
-    /// <param name="CacheControl">
-    /// If True, then then cache control is actived server-side.
-    /// </param>
-    /// <returns>
-    /// The updated <c>TSystemPayload</c> record.
-    /// </returns>
-    /// <remarks>
-    /// System messages: Content blocks in the system array.
-    /// <para>
-    /// - The cache has a 5 minute time to live (TTL). Currently, “ephemeral” is the only supported cache type, which corresponds to this 5-minute lifetime.
-    /// </para>
-    /// </remarks>
-    class function Create(const Text: string; const CacheControl: Boolean = False): TSystemPayload; overload; static;
-    /// <summary>
-    /// Create a new <c>TSystemPayload</c> record with the content of a <c>text/plain</c> file content.
-    /// </summary>
-    /// <param name="Text">
-    /// An explanatory text to introduce the contents of the file that will be attached.
-    /// </param>
-    /// <param name="CacheControl">
-    /// If True, then then cache control is actived server-side.
-    /// </param>
-    /// <returns>
-    /// The updated <c>TSystemPayload</c> record.
-    /// </returns>
-    /// <remarks>
-    /// System messages: Content blocks in the system array.
-    /// <para>
-    /// - The cache has a 5 minute time to live (TTL). Currently, “ephemeral” is the only supported cache type, which corresponds to this 5-minute lifetime.
-    /// </para>
-    /// </remarks>
-    class function Create(const Text: string; const FileNames: TArray<string>;
-      const CacheControl: Boolean = False): TSystemPayload; overload; static;
+    function CacheControl(const Value: TCachingType): TSystemPayload;
+    class function AddText(const Value: string; const Caching: TCachingType = nocaching): TSystemPayload;
   end;
 
   /// <summary>
@@ -384,7 +391,7 @@ type
   ///   Params := TChatParams.Create
   ///     .Model('my_model')
   ///     .MaxTokens(100)
-  ///     .Messages([TChatMessagePayload.User('Hello!')])
+  ///     .Messages([TChatMessagePayload1.User('Hello!')])
   ///     .Temperature(0.7)
   ///     .TopP(1)
   /// end;
@@ -422,14 +429,14 @@ type
     /// <summary>
     /// Provides the prompt(s) for the model to generate completions from, structured as a list of messages with roles (user, assistant, system) and content.
     /// </summary>
-    /// <param name="Value">An array of <c>TChatMessagePayload</c> representing the messages in the conversation.</param>
+    /// <param name="Value">An array of <c>TChatMessagePayload1</c> representing the messages in the conversation.</param>
     /// <returns>
     /// The updated <c>TChatParams</c> instance.
     /// </returns>
     /// <remarks>
     /// The first message should have a "user" role to initiate the conversation properly.
     /// </remarks>
-    function Messages(const Value: TArray<TChatMessagePayload>): TChatParams;
+    function Messages(const Value: TArray<TChatMessagePayload>): TChatParams; overload;
     /// <summary>
     /// An object describing metadata about the request.
     /// </summary>
@@ -484,10 +491,10 @@ type
     /// </remarks>
     function System(const Value: string): TChatParams; overload;
     /// <summary>
-    /// Set the system prompt from an array of <c>TSystemPayload</c>.
+    /// Set the system prompt.
     /// </summary>
     /// <param name="Value">
-    /// Build context and instructions with "Create" methods defined in <c>TSystemPayload</c>.
+    /// Array of string: maximum 2 items
     /// </param>
     /// <returns>
     /// The updated <c>TChatParams</c> instance.
@@ -498,7 +505,26 @@ type
     /// - A system prompt is a way of providing context and instructions to Claude, such as specifying a particular goal or role. See the guide to system prompts.
     /// </para>
     /// </remarks>
-    function System(const Value: TArray<TSystemPayload>): TChatParams; overload;
+    function System(const Value: TArray<string>): TChatParams; overload;
+    /// <summary>
+    /// Set the system prompt.
+    /// </summary>
+    /// <param name="Value">
+    /// the system prompt first value
+    /// </param>
+    /// <param name="TextFilePath">
+    /// The name of a text file for caching.
+    /// </param>
+    /// <returns>
+    /// The updated <c>TChatParams</c> instance.
+    /// </returns>
+    /// <remarks>
+    /// The array of <c>TSystemPayload</c> can exceded two items. And teh second item will be automatically marked to use caching serveur-side.
+    /// <para>
+    /// - A system prompt is a way of providing context and instructions to Claude, such as specifying a particular goal or role. See the guide to system prompts.
+    /// </para>
+    /// </remarks>
+    function System(const Value: string; TextFilePath: string): TChatParams; overload;
     /// <summary>
     /// Amount of randomness injected into the response.
     /// Sets the sampling temperature to use for the model's output.
@@ -950,6 +976,32 @@ type
   end;
 
   /// <summary>
+  /// Count the number of tokens in a Message.
+  /// The Token Count API can be used to count the number of tokens in a Message, including tools,
+  /// images, and documents, without creating it.
+  /// </summary>
+  TTokenCount = class
+  private
+    [JsonNameAttribute('input_tokens')]
+    FInputTokens: Int64;
+  public
+    /// <summary>
+    /// The total number of tokens across the provided list of messages, system prompt, and tools.
+    /// </summary>
+    property InputTokens: Int64 read FInputTokens write FInputTokens;
+  end;
+
+  /// <summary>
+  /// Manages asynchronous chat callBacks for a chat request using <c>TTokenCount</c> as the response type.
+  /// </summary>
+  /// <remarks>
+  /// The <c>TAsynTokenCount</c> type extends the <c>TAsynParams&lt;TTokenCount&gt;</c> record to handle the lifecycle of an asynchronous chat operation.
+  /// It provides event handlers that trigger at various stages, such as when the operation starts, completes successfully, or encounters an error.
+  /// This structure facilitates non-blocking chat operations and is specifically tailored for scenarios where multiple choices from a chat model are required.
+  /// </remarks>
+  TAsynTokenCount = TAsynCallBack<TTokenCount>;
+
+  /// <summary>
   /// Manages asynchronous chat callBacks for a chat request using <c>TChat</c> as the response type.
   /// </summary>
   /// <remarks>
@@ -1037,13 +1089,16 @@ type
     ///   end,
     ///   function: TAsynChat
     ///   begin
-    ///     Result.Sender := Memo1;  // Instance passed to callback parameter
+    ///     Result.Sender := my_display_component;
     ///
-    ///     Result.OnStart := nil;   // If nil then; Can be omitted
+    ///     Result.OnStart :=
+    ///        procedure (Sender: TObject);
+    ///        begin
+    ///          // Handle the start
+    ///        end;
     ///
-    ///     Result.OnSuccess := procedure (Sender: TObject; Chat: TChat)
+    ///     Result.OnSuccess := procedure (Sender: TObject; Value: TChat)
     ///     begin
-    ///       var M := Sender as TMemo; // Because Result.Sender = Memo1
     ///       // Handle success operation
     ///     end;
     ///
@@ -1080,7 +1135,7 @@ type
     ///
     ///   function: TAsynChatStream
     ///   begin
-    ///     Result.Sender := Memo1; // Instance passed to callback parameter
+    ///     Result.Sender := my_display_component;
     ///     Result.OnProgress :=
     ///         procedure (Sender: TObject; Chat: TChat)
     ///         begin
@@ -1112,6 +1167,48 @@ type
     procedure AsynCreateStream(ParamProc: TProc<TChatParams>;
       CallBacks: TFunc<TAsynChatStream>);
     /// <summary>
+    /// Count the number of tokens in a Message.
+    /// </summary>
+    /// <param name="ParamProc">
+    /// A procedure used to configure the parameters to evaluate.
+    /// </param>
+    /// <param name="CallBacks">
+    /// A function that returns a record containing event handlers for the asynchronous chat completion, such as on success and on error.
+    /// </param>
+    /// <remarks>
+    /// The Token Count API can be used to count the number of tokens in a Message, including tools, images, and documents, without creating it.
+    /// <code>
+    /// // WARNING - Move the following line into the main OnCreate
+    /// //var Anthropic := TAnthropicFactory.CreateInstance(BaererKey);
+    /// Anthropic.Chat.AsynTokenCount(
+    ///   procedure (Params: TChatParams)
+    ///   begin
+    ///     // Define chat parameters
+    ///   end,
+    ///   function: TAsynTokenCount
+    ///   begin
+    ///     Result.Sender := my_display_component;
+    ///
+    ///     Result.OnStart :=
+    ///        procedure (Sender: TObject);
+    ///        begin
+    ///          // Handle the start
+    ///        end;
+    ///
+    ///     Result.OnSuccess := procedure (Sender: TObject; Value: TTokenCount)
+    ///     begin
+    ///       // Handle success operation
+    ///     end;
+    ///
+    ///     Result.OnError := procedure (Sender: TObject; Value: string)
+    ///     begin
+    ///       // Handle error message
+    ///     end;
+    ///   end);
+    /// </code>
+    /// </remarks>
+    procedure AsynTokenCount(ParamProc: TProc<TChatParams>; CallBacks: TFunc<TAsynTokenCount>);
+    /// <summary>
     /// Creates a completion for the chat message using the provided parameters.
     /// </summary>
     /// <param name="ParamProc">
@@ -1128,20 +1225,17 @@ type
     /// </exception>
     /// <remarks>
     /// The <c>Create</c> method sends a chat completion request and waits for the full response. The returned <c>TChat</c> object contains the model's generated response, including multiple choices if available.
-    ///
-    /// Example usage:
     /// <code>
     ///   var Anthropic := TAnthropicFactory.CreateInstance(BaererKey);
-    ///   var Chat := Anthropic.Chat.Create(
+    ///   var Value := Anthropic.Chat.Create(
     ///     procedure (Params: TChatParams)
     ///     begin
     ///       // Define chat parameters
     ///     end);
     ///   try
-    ///     for var Item in Chat.Content do
-    ///       WriteLn(Item.Text);
+    ///     // Handle the value
     ///   finally
-    ///     Chat.Free;
+    ///     Value.Free;
     ///   end;
     /// </code>
     /// </remarks>
@@ -1176,115 +1270,50 @@ type
     ///
     ///     procedure(var Chat: TChat; IsDone: Boolean; var Cancel: Boolean)
     ///     begin
-    ///       // Handle displaying
-    ///     end
-    ///   );
+    ///       // Handle the "Chat" value
+    ///     end);
     /// </code>
     /// </remarks>
     function CreateStream(ParamProc: TProc<TChatParams>; Event: TChatEvent): Boolean;
+    /// <summary>
+    /// Count the number of tokens in a Message.
+    /// </summary>
+    /// <param name="ParamProc">
+    /// A procedure used to configure the parameters to evaluate.
+    /// </param>
+    /// <returns>
+    /// Returns a <c>TTokenCount</c> object that contains the tokencount response.
+    /// </returns>
+    /// <exception cref="AnthropicExceptionAPI">
+    /// Thrown when there is an error in the communication with the API or other underlying issues in the API call.
+    /// </exception>
+    /// <exception cref="AnthropicExceptionInvalidRequestError">
+    /// Thrown when the request is invalid, such as when required parameters are missing or values exceed allowed limits.
+    /// </exception>
+    /// <remarks>
+    /// The Token Count API can be used to count the number of tokens in a Message, including tools, images, and documents, without creating it.
+    /// <code>
+    ///   var Anthropic := TAnthropicFactory.CreateInstance(BaererKey);
+    ///   var Value := Anthropic.Chat.TokenCount(
+    ///     procedure (Params: TChatParams)
+    ///     begin
+    ///       // Define chat parameters
+    ///     end);
+    ///   try
+    ///     // Handle the value
+    ///   finally
+    ///     Value.Free;
+    ///   end;
+    /// </code>
+    /// </remarks>
+    function TokenCount(ParamProc: TProc<TChatParams>): TTokenCount;
   end;
 
 implementation
 
 uses
   System.StrUtils, System.Rtti, Rest.Json, Anthropic.NetEncoding.Base64,
-  Anthropic.Stream.API;
-
-{ TMessageRoleHelper }
-
-class function TMessageRoleHelper.FromString(const Value: string): TMessageRole;
-begin
-  case IndexStr(AnsiLowerCase(Value), ['user', 'assistant']) of
-    0 :
-      Exit(user);
-    1 :
-      Exit(assistant);
-  end;
-  Result := user;
-end;
-
-function TMessageRoleHelper.ToString: string;
-begin
-  case Self of
-    user:
-      Exit('user');
-    assistant:
-      Exit('assistant');
-  end;
-end;
-
-{ TStopReasonHelper }
-
-class function TStopReasonHelper.Create(const Value: string): TStopReason;
-begin
-  case IndexStr(AnsiLowerCase(Value), ['end_turn', 'max_tokens', 'stop_sequence', 'tool_use']) of
-    0 :
-      Exit(end_turn);
-    1 :
-      Exit(max_tokens);
-    2 :
-      Exit(stop_sequence);
-    3 :
-      Exit(tool_use);
-  end;
-  Result := end_turn;
-end;
-
-function TStopReasonHelper.ToString: string;
-begin
-  case Self of
-    end_turn:
-      Exit('end_turn');
-    max_tokens:
-      Exit('max_tokens');
-    stop_sequence:
-      Exit('stop_sequence');
-    tool_use:
-      Exit('tool_use');
-  end;
-end;
-
-{ TStopReasonInterceptor }
-
-function TStopReasonInterceptor.StringConverter(Data: TObject;
-  Field: string): string;
-begin
-  Result := RTTI.GetType(Data.ClassType).GetField(Field).GetValue(Data).AsType<TStopReason>.ToString;
-end;
-
-procedure TStopReasonInterceptor.StringReverter(Data: TObject; Field,
-  Arg: string);
-begin
-  RTTI.GetType(Data.ClassType).GetField(Field).SetValue(Data, TValue.From(TStopReason.Create(Arg)));
-end;
-
-{ TChatMessagePayload }
-
-class function TChatMessagePayload.Assistant(
-  const Content: string): TChatMessagePayload;
-begin
-  Result.Role := TMessageRole.assistant;
-  Result.Content := Content;
-end;
-
-class function TChatMessagePayload.User(
-  const Content: string; CacheControl: Boolean): TChatMessagePayload;
-begin
-  Result.Role := TMessageRole.user;
-  Result.Content := Content;
-  Result.CacheControl := CacheControl;
-end;
-
-class function TChatMessagePayload.User(const Content: string;
-  FileNames: TArray<string>; Caching: TSysCachingType): TChatMessagePayload;
-begin
-  Result.Role := TMessageRole.user;
-  Result.Content := Content;
-  Result.VisionCaching := Caching;
-  Result.CacheControl := Caching in [contentCached, both];
-  for var FileName in FileNames do
-    Result.FImages := Result.FImages + [TVisionSource.Create(FileName)];
-end;
+  Anthropic.Stream.API, System.IOUtils, Anthropic.Httpx;
 
 { TChatParams }
 
@@ -1301,128 +1330,14 @@ end;
 
 function TChatParams.Messages(
   const Value: TArray<TChatMessagePayload>): TChatParams;
-
-  function HandleForVision(const PayLoad: TChatMessagePayload): TJSONArray;
-  begin
-    var index := 0;
-    Result := TJSONArray.Create;
-    for var Image in PayLoad.FImages do
-      begin
-        var JSONImage := TJSONObject.Create;
-        {--- Add type }
-        JSONImage.AddPair('type', 'image');
-
-        {--- Add source }
-        var JSONSource := TJSONObject.Create;
-
-          {--- Add the encoding type  }
-          JSONSource.AddPair('type', 'base64');
-
-          {--- Add the image format type  }
-          JSONSource.AddPair('media_type', Image.MimeType);
-
-        {--- Add the base64-encoded data  }
-        JSONSource.AddPair('data', Image.Data);
-
-        {--- Add the source JSONImage }
-        JSONImage.AddPair('source', JSONSource);
-
-        {--- Mark the cache control flag on the last image record }
-        if (PayLoad.VisionCaching in [imagesCached, both]) and
-           (index >= Pred(Length(PayLoad.FImages)) ) then
-        begin
-          {--- create cache_control object }
-          var JSONCacheValue := TJSONObject.Create(TJSONPair.Create('type', 'ephemeral'));
-
-          {--- Add cache control flag }
-          JSONImage.AddPair('cache_control', JSONCacheValue);
-        end;
-
-        {--- Add new entry to result array }
-        Result.Add(JSONImage);
-
-        Inc(index);
-      end;
-
-    var JSONContent := TJSONObject.Create;
-    {--- Add text type }
-    JSONContent.AddPair('type', 'text');
-
-    {--- Add text content }
-    JSONContent.AddPair('text', PayLoad.Content);
-
-    if PayLoad.CacheControl then
-      begin
-        {--- create cache_control object }
-        var JSONCacheValue := TJSONObject.Create(TJSONPair.Create('type', 'ephemeral'));
-
-        {--- Add cache control flag }
-        JSONContent.AddPair('cache_control', JSONCacheValue);
-      end;
-
-    {--- Add new entry to result array }
-    Result.Add(JSONContent);
-  end;
-
-  function HandleCacheControl(const PayLoad: TChatMessagePayload): TJSONArray;
-  begin
-    Result := TJSONArray.Create;
-
-    var JSONContent := TJSONObject.Create;
-    {--- Add type }
-    JSONContent.AddPair('type', 'text');
-
-    {--- Add text }
-    JSONContent.AddPair('text', PayLoad.Content);
-
-    {--- create cache_control object }
-    var JSONCacheValue := TJSONObject.Create(TJSONPair.Create('type', 'ephemeral'));
-
-    {--- Add cache control flag }
-    JSONContent.AddPair('cache_control', JSONCacheValue);
-
-    {--- Add new entry to result array }
-    Result.Add(JSONContent);
-  end;
-
-var
-  JSON: TJSONObject;
 begin
-  var Items := TJSONArray.Create;
-  try
-    var JSONVision: TJSONArray := nil;
-    for var Item in Value do
-      begin
-        {--- Check vision option }
-        if Length(Item.FImages) > 0 then
-          begin
-            JSONVision := HandleForVision(Item);
-          end;
+  var JSONArray := TJSONArray.Create;
+  for var Item in Value do
+    JSONArray.Add(Item.Detach);
+  Result := TChatParams(Add('messages', JSONArray));
+end;
 
-        JSON := TJSONObject.Create;
-        {--- Add role }
-        JSON.AddPair('role', Item.Role.ToString);
-
-        {--- Add content }
-        if Length(Item.FImages) > 0 then
-          JSON.AddPair('content', JSONVision)
-        else
-          begin
-            {--- Check cache_control option }
-            if Item.CacheControl then
-              JSON.AddPair('content', HandleCacheControl(Item)) else
-              JSON.AddPair('content', Item.Content);
-          end;
-
-        {--- Add new entry to final array }
-        Items.Add(JSON);
-      end;
-  except
-    Items.Free;
-    raise;
-  end;
-  Result := TChatParams(Add('messages', Items));
-end; {Messages}
+{Messages}
 
 function TChatParams.Metadata(const Value: string): TChatParams;
 begin
@@ -1446,48 +1361,37 @@ begin
   Result := TChatParams(Add('stream', Value));
 end;
 
+function TChatParams.System(const Value: string): TChatParams;
+begin
+  Result := TChatParams(Add('system', Value));
+end;
+
 function TChatParams.System(
-  const Value: TArray<TSystemPayload>): TChatParams;
-var
-  JSON: TJSONObject;
+  const Value: TArray<string>): TChatParams;
 begin
   if Length(Value) > 2 then
     raise Exception.Create('"TSystemPayload" with more than two items is not supported');
 
-  var Items := TJSONArray.Create;
-  try
-    for var Item in Value do
-      begin
-        JSON := TJSONObject.Create;
-        {--- Add type }
-        JSON.AddPair('type', Item.&Type);
+  if Length(Value) = 1 then
+    Exit(System(Value[0]));
 
-        {--- Add text }
-        JSON.AddPair('text', Item.Text);
+  var JSONArray := TJSONArray.Create
+    .Add(TSystemPayload.AddText(Value[0]).Detach)
+    .Add(TSystemPayload.AddText(Value[1], ephemeral).Detach);
 
-        {--- Check cache_control option }
-        if Item.CacheControl then
-          begin
-            {--- Create cache control option ephemeral }
-            var JSONCacheValue := TJSONObject.Create(TJSONPair.Create('type', 'ephemeral'));
-
-            {--- Set Cache control option into JSON onject }
-            JSON.AddPair('cache_control', JSONCacheValue);
-          end;
-
-        {--- Add new entry to final array }
-        Items.Add(JSON);
-      end;
-  except
-    Items.Free;
-    raise;
-  end;
-  Result := TChatParams(Add('system', Items));
+  Result := TChatParams(Add('system', JSONArray));
 end;
 
-function TChatParams.System(const Value: string): TChatParams;
+function TChatParams.System(const Value: string; TextFilePath: string): TChatParams;
 begin
-  Result := TChatParams(Add('system', Value));
+  if not FileExists(TextFilePath) or not ExtractFileExt(TextFilePath).ToLower.StartsWith('.txt') then
+    raise Exception.Create('"System" parameter error: File not found or file is not of type .txt');
+
+  var JSONArray := TJSONArray.Create
+    .Add(TSystemPayload.AddText(Value).Detach)
+    .Add(TSystemPayload.AddText(TFile.ReadAllText(TextFilePath, TEncoding.UTF8), ephemeral).Detach);
+
+  Result := TChatParams(Add('system', JSONArray));
 end;
 
 function TChatParams.Temperature(const Value: Single): TChatParams;
@@ -1638,7 +1542,9 @@ begin
                                  following processing}
                             LocalChat.Free;
                           end;
-                        end);
+                        end)
+                      else
+                        LocalChat.Free;
                     end
                   else
                     begin
@@ -1654,7 +1560,9 @@ begin
                                  following processing}
                             LocalChat.Free;
                           end;
-                        end);
+                        end)
+                      else
+                        LocalChat.Free;
                     end;
                 end);
             except
@@ -1679,6 +1587,25 @@ begin
             end;
           end);
   Task.Start;
+end;
+
+procedure TChatRoute.AsynTokenCount(ParamProc: TProc<TChatParams>;
+  CallBacks: TFunc<TAsynTokenCount>);
+begin
+  with TAsynCallBackExec<TAsynTokenCount, TTokenCount>.Create(CallBacks) do
+  try
+    Sender := Use.Param.Sender;
+    OnStart := Use.Param.OnStart;
+    OnSuccess := Use.Param.OnSuccess;
+    OnError := Use.Param.OnError;
+    Run(
+      function: TTokenCount
+      begin
+        Result := Self.TokenCount(ParamProc);
+      end);
+  finally
+    Free;
+  end;
 end;
 
 function TChatRoute.Create(ParamProc: TProc<TChatParams>): TChat;
@@ -1772,18 +1699,9 @@ begin
   end;
 end;
 
-{ TToolChoiceTypeHelper }
-
-function TToolChoiceTypeHelper.ToString: string;
+function TChatRoute.TokenCount(ParamProc: TProc<TChatParams>): TTokenCount;
 begin
-  case Self of
-    auto:
-      Exit('auto');
-    any:
-      Exit('any');
-    tool:
-      Exit('tool');
-  end;
+  Result := API.Post<TTokenCount, TChatParams>('messages/count_tokens', ParamProc);
 end;
 
 { TInputFixInterceptor }
@@ -1791,8 +1709,9 @@ end;
 procedure TInputFixInterceptor.StringReverter(Data: TObject; Field,
   Arg: string);
 begin
-  var FixValue := Format('{%s}', [ReplaceStr(Arg, '`', '"')]);
-  RTTI.GetType(Data.ClassType).GetField(Field).SetValue(Data, FixValue);
+  Arg := Format('{%s}', [Trim(Arg.Replace('`', '"').Replace(#10, ''))]);
+  while Arg.Contains(', ') do Arg := Arg.Replace(', ', ',');
+  RTTI.GetType(Data.ClassType).GetField(Field).SetValue(Data, Arg.Replace(',', ', '));
 end;
 
 { TContentInterceptor }
@@ -1808,56 +1727,194 @@ begin
   end;
 end;
 
-{ TSystemPayload }
+{ TChatMessagePayload }
 
-class function TSystemPayload.Create(const Text: string;
-  const CacheControl: Boolean): TSystemPayload;
+function TChatMessagePayload.Content(const Value: string): TChatMessagePayload;
 begin
-  Result.FType := 'text';
-  Result.FText := Text;
-  Result.FCacheControl := CacheControl;
+  Result := TChatMessagePayload(Add('content', Value));
 end;
 
-class function TSystemPayload.Create(const Text: string;
-  const FileNames: TArray<string>; const CacheControl: Boolean): TSystemPayload;
-
-  function GetTextFileContent(const S: string): string;
-  begin
-    with TStringList.Create do
-    try
-      LoadFromFile(S, TEncoding.UTF8);
-      Result := Text + sLineBreak;
-    finally
-      Free;
-    end;
-  end;
-
-  procedure CheckFile(const S: string);
-  begin
-    if not FileExists(S) then
-      raise Exception.CreateFmt('File not found : %s', [S]);
-    var MimeType := ResolveMimeType(S);
-    if IndexStr(MimeType, ['text/plain']) = -1 then
-      raise Exception.CreateFmt(
-         'File : %s' + sLineBreak +
-         'Only UTF8 encoded "plain text" text files are supported.', [S]);
-  end;
-
+class function TChatMessagePayload.Assistant(
+  const Value: string): TChatMessagePayload;
 begin
-  var AttachedText := EmptyStr;
-  for var Item in FileNames do
-    begin
-      CheckFile(Item);
-      if AttachedText.IsEmpty then
-         AttachedText := GetTextFileContent(Item) else
-         AttachedText := AttachedText + GetTextFileContent(Item);
-    end;
-  Result.FType := 'text';
-  if Trim(AttachedText) <> EmptyStr then
-    Result.Text := Format('%s <book> %s </book>', [Text, AttachedText]) else
-    Result.Text := AttachedText;
+  Result := TChatMessagePayload.Create.Role(TMessageRole.assistant).Content(Value);
+end;
 
-  Result.FCacheControl := CacheControl;
-end; {Create}
+function TChatMessagePayload.Content(
+  const Value: TChatMessageContent): TChatMessagePayload;
+begin
+  Result := TChatMessagePayload(Add('content', TJSONArray.Create.Add(Value.Detach)));
+end;
+
+function TChatMessagePayload.Content(
+  const Value: TJSONArray): TChatMessagePayload;
+begin
+  Result := TChatMessagePayload(Add('content', Value));
+end;
+
+function TChatMessagePayload.Role(
+  const Value: TMessageRole): TChatMessagePayload;
+begin
+  Result := TChatMessagePayload(Add('role', Value.ToString));
+end;
+
+class function TChatMessagePayload.Pdf(const Value: string;
+  const Documents: TArray<string>; CacheControl: Boolean): TChatMessagePayload;
+begin
+  var JSONArray := TJSONArray.Create;
+  var index := 1;
+  for var Item in Documents do
+    begin
+      if CacheControl and (index = Length(Documents)) then
+        JSONArray.Add(TChatMessageContent.AddPDF(Item, ephemeral).Detach) else
+        JSONArray.Add(TChatMessageContent.AddPDF(Item).Detach);
+      Inc(index);
+    end;
+  if CacheControl then
+    JSONArray.Add(TChatMessageContent.AddText(Value, ephemeral).Detach) else
+    JSONArray.Add(TChatMessageContent.AddText(Value).Detach);
+  Result := TChatMessagePayload.Create.Role(TMessageRole.user).Content(JSONArray);
+end;
+
+class function TChatMessagePayload.User(const Value: string;
+  const Images: TArray<string>; CacheControl: Boolean): TChatMessagePayload;
+begin
+  var JSONArray := TJSONArray.Create;
+  var index := 1;
+  for var Item in Images do
+    begin
+      if CacheControl and (index = Length(Images)) then
+        JSONArray.Add(TChatMessageContent.AddImage(Item, ephemeral).Detach) else
+        JSONArray.Add(TChatMessageContent.AddImage(Item).Detach);
+      Inc(index);
+    end;
+  if CacheControl then
+    JSONArray.Add(TChatMessageContent.AddText(Value, ephemeral).Detach) else
+    JSONArray.Add(TChatMessageContent.AddText(Value).Detach);
+  Result := TChatMessagePayload.Create.Role(TMessageRole.user).Content(JSONArray);
+end;
+
+class function TChatMessagePayload.User(const Value: string;
+  CacheControl: Boolean): TChatMessagePayload;
+begin
+  case CacheControl of
+    True :
+      Result := TChatMessagePayload.Create.Role(TMessageRole.user).Content(TChatMessageContent.AddText(Value, ephemeral));
+    else
+      Result := TChatMessagePayload.Create.Role(TMessageRole.user).Content(Value);
+  end;
+end;
+
+{ TChatMessageContent }
+
+class function TChatMessageContent.AddImage(const Value: string;
+  const Caching: TCachingType): TChatMessageContent;
+begin
+  Result := TChatMessageContent.Create.&Type('image').Source(Value);
+  case Caching of
+    ephemeral:
+      Result := Result.CacheControl(Caching);
+  end;
+end;
+
+class function TChatMessageContent.AddPDF(const Value: string;
+  const Caching: TCachingType): TChatMessageContent;
+begin
+  Result := TChatMessageContent.Create.&Type('document').Source(Value);
+  case Caching of
+    ephemeral:
+      Result := Result.CacheControl(Caching);
+  end;
+end;
+
+class function TChatMessageContent.AddText(const Value: string;
+  const Caching: TCachingType): TChatMessageContent;
+begin
+  Result := TChatMessageContent.Create.&Type('text').Text(Value);
+  case Caching of
+    ephemeral:
+      Result := Result.CacheControl(Caching);
+  end;
+end;
+
+function TChatMessageContent.CacheControl(const Value: TCachingType): TChatMessageContent;
+begin
+  Result := TChatMessageContent(Add('cache_control', TJSONObject.Create.AddPair('type', Value.ToString)));
+end;
+
+function TChatMessageContent.Source(const Value: string;
+  const Caching: TCachingType): TChatMessageContent;
+begin
+  Result := TChatMessageContent(Add('source', TContentImageSource.New(Value).Detach));
+end;
+
+function TChatMessageContent.Text(const Value: string): TChatMessageContent;
+begin
+  Result := TChatMessageContent(Add('text', Value));
+end;
+
+function TChatMessageContent.&Type(const Value: string): TChatMessageContent;
+begin
+  Result := TChatMessageContent(Add('type', Value));
+end;
+
+{ TContentImageSource }
+
+function TContentImageSource.Data(const Value: string): TContentImageSource;
+begin
+  Result := TContentImageSource(Add('data', Value));
+end;
+
+function TContentImageSource.MediaType(
+  const Value: string): TContentImageSource;
+begin
+  Result := TContentImageSource(Add('media_type', Value));
+end;
+
+class function TContentImageSource.New(
+  const Value: string): TContentImageSource;
+var
+  MimeType: string;
+  Base64: string;
+begin
+  if Value.ToLower.StartsWith('http') then
+    Base64 := THttpx.LoadDataToBase64(Value, MimeType) else
+    base64 := FileToBase64(Value, MimeType);
+  CheckMimeType(MimeType);
+  Result := TContentImageSource.Create.&Type('base64').MediaType(MimeType).Data(Base64);
+end;
+
+function TContentImageSource.&Type(const Value: string): TContentImageSource;
+begin
+  Result := TContentImageSource(Add('type', Value));
+end;
+
+{ TSystemPayload }
+
+class function TSystemPayload.AddText(const Value: string;
+  const Caching: TCachingType): TSystemPayload;
+begin
+  Result := TSystemPayload.Create.&Type('text').Text(Value);
+  if Caching <> nocaching then
+  case Caching of
+    ephemeral:
+      Result := Result.CacheControl(Caching);
+  end;
+end;
+
+function TSystemPayload.CacheControl(const Value: TCachingType): TSystemPayload;
+begin
+  Result := TSystemPayload(Add('cache_control', TJSONObject.Create.AddPair('type', Value.ToString)));
+end;
+
+function TSystemPayload.Text(const Value: string): TSystemPayload;
+begin
+  Result := TSystemPayload(Add('text', Value));
+end;
+
+function TSystemPayload.&Type(const Value: string): TSystemPayload;
+begin
+  Result := TSystemPayload(Add('type', Value));
+end;
 
 end.

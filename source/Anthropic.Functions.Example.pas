@@ -10,7 +10,7 @@ unit Anthropic.Functions.Example;
 interface
 
 uses
-  System.SysUtils, Anthropic.Functions.Core;
+  System.SysUtils, Anthropic.Functions.Core, MistralAI.Schema, MistralAI.Types;
 
 type
   TWeatherReportFunction = class(TFunctionCore)
@@ -90,6 +90,7 @@ begin
   end;
 end; {Execute}
 
+
 function TWeatherReportFunction.GetDescription: string;
 begin
   Result := 'Get the current weather in a given location';
@@ -102,17 +103,46 @@ end;
 
 function TWeatherReportFunction.GetInputSchema: string;
 begin
-  Result :=
-    '{'+
-    '"type": "object",'+
-    '"properties": {'+
-         '"location": {'+
-             '"type": "string",'+
-             '"description": "The city and state, e.g. San Francisco, CA"'+
-           '}'+
-     '},'+
-     '"required": ["location"]'+
-    '}';
+//  Result :=
+//    '{'+
+//    '"type": "object",'+
+//    '"properties": {'+
+//         '"location": {'+
+//             '"type": "string",'+
+//             '"description": "The city and department, e.g. Marseille, 13"'+
+//         '},'+
+//         '"unit": {'+
+//             '"type": "string",'+
+//             '"enum": ["celsius", "fahrenheit"]'+
+//         '}'+
+//     '},'+
+//     '"required": ["location"]'+
+//  '}';
+
+  {--- If we use the TSchemaParams class defined in the MistralAI.Schema.pas unit }
+  var Schema := TSchemaParams.New(
+    procedure (var Params: TSchemaParams)
+    begin
+      Params.&Type(stOBJECT);
+      Params.Properties('properties',
+        procedure (var Params: TSchemaParams)
+        begin
+          Params.Properties('location',
+            procedure (var Params: TSchemaParams)
+            begin
+              Params.&Type(stSTRING);
+              Params.Description('The city and state, e.g. San Francisco, CA');
+            end);
+          Params.Properties('unit',
+            procedure (var Params: TSchemaParams)
+            begin
+              Params.&Type(stSTRING);
+              Params.Enum(['celsius', 'fahrenheit']);
+            end);
+        end);
+      Params.Required(['location', 'unit']);
+    end);
+  Result := Schema.ToJsonString(True);
 end;
 
 end.
