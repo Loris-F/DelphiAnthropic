@@ -726,7 +726,7 @@ In this unit, this schema will be used for function calls.
 ```
 <br/>
 
-1. We will use the TWeatherReportFunction plugin defined in the [`Anthropic.Functions.Example`](#https://github.com/MaxiDonkey/DelphiAnthropic/blob/main/source/Anthropic.Functions.Example.pas) unit.
+1. We will use the TWeatherReportFunction plugin defined in the [`Anthropic.Functions.Example`](https://github.com/MaxiDonkey/DelphiAnthropic/blob/main/source/Anthropic.Functions.Example.pas) unit.
 
 ```Pascal
   var WeatherFunc := TWeatherReportFunction.CreateInstance;  
