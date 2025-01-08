@@ -186,7 +186,9 @@ To automate the process, the `TAnthropicFactory` class provides two class method
 
 <br/>
 
-To simplify the tutorial and provide practical, ready-to-use code examples, we will use the following instances:
+>[!WARNING]
+>To fully leverage the examples featured in this tutorial—especially when working with asynchronous methods—I suggest configuring the HuggingFace interface with the broadest possible scope. To simplify the tutorial and provide practical, ready-to-use code, we will set up the following instances:
+>
 
 ```Pascal
   Anthropic: IAnthropic;
