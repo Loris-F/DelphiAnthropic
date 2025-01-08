@@ -370,6 +370,28 @@ type
     /// Enable/disable the cache contol flag.
     /// </summary>
     function CacheControl(const Value: TCachingType): TSystemPayload;
+    /// <summary>
+    /// Creates a new system payload containing a textual message with optional caching behavior.
+    /// </summary>
+    /// <param name="Value">
+    /// The text content to include in the system payload. This text typically serves as instructions, rules, or contextual information for the AI model.
+    /// </param>
+    /// <param name="Caching">
+    /// Specifies the caching behavior for the system payload. Options include:
+    /// <para>
+    /// <c>nocaching</c> (default): Disables caching for this payload.
+    /// </para>
+    /// <para>
+    /// <c>ephemeral</c>: Enables server-side caching to optimize performance for repeated requests.
+    /// </para>
+    /// </param>
+    /// <returns>
+    /// A <c>TSystemPayload</c> instance initialized with the provided text and caching behavior.
+    /// </returns>
+    /// <remarks>
+    /// This method simplifies the creation of system payloads by allowing the inclusion of textual instructions or guidelines along with optional caching settings.
+    /// Use the <c>ephemeral</c> caching option to reduce latency when the same system payload is used multiple times.
+    /// </remarks>
     class function AddText(const Value: string; const Caching: TCachingType = nocaching): TSystemPayload;
   end;
 
