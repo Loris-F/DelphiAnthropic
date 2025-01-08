@@ -1902,7 +1902,6 @@ begin
   if Value.ToLower.StartsWith('http') then
     Base64 := THttpx.LoadDataToBase64(Value, MimeType) else
     base64 := FileToBase64(Value, MimeType);
-  CheckMimeType(MimeType);
   Result := TContentImageSource.Create.&Type('base64').MediaType(MimeType).Data(Base64);
 end;
 

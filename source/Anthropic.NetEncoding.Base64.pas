@@ -45,28 +45,6 @@ uses
   function ResolveMimeType(const FileLocation: string): string;
 
   /// <summary>
-  /// Validates the MIME type of the specified file to ensure it is supported.
-  /// </summary>
-  /// <param name="FileLocation">
-  /// The full path to the file whose MIME type is to be checked.
-  /// </param>
-  /// <exception cref="Exception">
-  /// Thrown if the specified file cannot be found at the provided location, or if the MIME type
-  /// of the file is not supported.
-  /// </exception>
-  /// <remarks>
-  /// This procedure verifies if the file exists at the given path and checks its MIME type
-  /// using the <see cref="ResolveMimeType"/> function.
-  /// <para>
-  /// Supported MIME types include: image/png, image/jpeg, image/gif, image/webp, and application/pdf.
-  /// </para>
-  /// <para>
-  /// If the file's MIME type is not in this list, an exception is raised indicating an unsupported format.
-  /// </para>
-  /// </remarks>
-  procedure CheckMimeType(const MimeType: string);
-
-  /// <summary>
   /// Retrieves the MIME type of the specified file and returns its content as a Base64-encoded string.
   /// </summary>
   /// <param name="FileLocation">
@@ -120,11 +98,11 @@ begin
   TMimeTypes.Default.GetFileInfo(FileLocation, Result, LKind);
 end;
 
-procedure CheckMimeType(const MimeType: string);
-begin
-  if IndexStr(MimeType.ToLower, ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf']) = -1 then
-    raise Exception.Create('Unsupported document format');
-end;
+//procedure CheckMimeType(const MimeType: string);
+//begin
+////  if IndexStr(MimeType.ToLower, ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf']) = -1 then
+////    raise Exception.Create('Unsupported document format');
+//end;
 
 function FileToBase64(FileLocation : string; var MimeType: string): string;
 begin
