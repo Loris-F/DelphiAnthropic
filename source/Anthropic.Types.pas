@@ -76,27 +76,27 @@ type
     tool_use);
 
   /// <summary>
-  /// Helper record for the <c>TFinishReason</c> enumeration, providing utility methods for conversion between string representations and <c>TFinishReason</c> values.
+  /// Helper record for the <c>TStopReason</c> enumeration, providing utility methods for conversion between string representations and <c>TStopReason</c> values.
   /// </summary>
   TStopReasonHelper = record helper for TStopReason
     /// <summary>
-    /// Converts the current <c>TStopReasonHelper</c> value to its string representation.
+    /// Converts the current <c>TStopReason</c> value to its string representation.
     /// </summary>
     /// <returns>
-    /// A string representing the current <c>TStopReasonHelper</c> value.
+    /// A string representing the current <c>TStopReason</c> value.
     /// </returns>
     function ToString: string;
     /// <summary>
-    /// Creates a <c>TStopReasonHelper</c> value from its corresponding string representation.
+    /// Creates a <c>TStopReason</c> value from its corresponding string representation.
     /// </summary>
     /// <param name="Value">
-    /// The string value representing a <c>TStopReasonHelper</c>.
+    /// The string value representing a <c>TStopReason</c>.
     /// </param>
     /// <returns>
-    /// The corresponding <c>TStopReasonHelper</c> enumeration value for the provided string.
+    /// The corresponding <c>TStopReason</c> enumeration value for the provided string.
     /// </returns>
     /// <remarks>
-    /// This method throws an exception if the input string does not match any valid <c>TStopReasonHelper</c> values.
+    /// This method throws an exception if the input string does not match any valid <c>TStopReason</c> values.
     /// </remarks>
     class function Create(const Value: string): TStopReason; static;
   end;
